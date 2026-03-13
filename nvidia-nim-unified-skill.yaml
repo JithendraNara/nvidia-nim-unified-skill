@@ -10,34 +10,34 @@ requires:
 
 config:
   - name: NVIDIA_API_KEY
-    description: NVIDIA API key for managed reranking
+    description: NVIDIA API key for managed reranking and CV endpoints
     required: false
     secret: true
 
   - name: NVIDIA_NIM_BEARER_TOKEN
-    description: Optional bearer token for self-hosted NIM infer services
+    description: Optional bearer token for self-hosted endpoint overrides
     required: false
     secret: true
 
   - name: NVIDIA_NIM_OCR_URL
-    description: Base URL or full infer URL for OCR NIM
+    description: Optional override for the OCR endpoint URL
     required: false
-    example: http://localhost:8001
+    example: https://ai.api.nvidia.com/v1/cv/nvidia/nemotron-ocr-v1
 
   - name: NVIDIA_NIM_PAGE_ELEMENTS_URL
-    description: Base URL or full infer URL for page elements NIM
+    description: Optional override for the page elements endpoint URL
     required: false
-    example: http://localhost:8002
+    example: https://ai.api.nvidia.com/v1/cv/nvidia/nemotron-page-elements-v3
 
   - name: NVIDIA_NIM_TABLE_STRUCTURE_URL
-    description: Base URL or full infer URL for table structure NIM
+    description: Optional override for the table structure endpoint URL
     required: false
-    example: http://localhost:8003
+    example: https://ai.api.nvidia.com/v1/cv/nvidia/nemoretriever-table-structure-v1
 
   - name: NVIDIA_NIM_GRAPHIC_ELEMENTS_URL
-    description: Base URL or full infer URL for graphic elements NIM
+    description: Optional override for the graphic elements endpoint URL
     required: false
-    example: http://localhost:8004
+    example: https://ai.api.nvidia.com/v1/cv/nvidia/nemoretriever-graphic-elements-v1
 
 capabilities:
   - OCR text extraction from document images
@@ -71,3 +71,4 @@ workflows:
 notes:
   - This skill is a unified router, not a fake merged OpenAPI endpoint.
   - Use references/nim-capabilities.json for exact normalized request and response shapes.
+  - Managed CV endpoints require base64 data-image inputs; the router normalizes incoming image sources automatically.

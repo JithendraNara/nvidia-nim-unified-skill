@@ -43,19 +43,21 @@
         "invoice text",
         "page text"
       ],
+      "fixed_url": "https://ai.api.nvidia.com/v1/cv/nvidia/nemotron-ocr-v1",
       "endpoint_env": "NVIDIA_NIM_OCR_URL",
-      "auth_env": "NVIDIA_NIM_BEARER_TOKEN",
+      "auth_env": "NVIDIA_API_KEY",
       "method": "POST",
-      "path": "/v1/infer",
+      "path": "/v1/cv/nvidia/nemotron-ocr-v1",
       "request": {
         "required_inputs": [
           "image_urls"
         ],
+        "image_input_mode": "data_url",
         "schema": {
           "input": [
             {
               "type": "image_url",
-              "url": "<image_url>"
+              "url": "<data:image/...;base64,...>"
             }
           ],
           "merge_levels": [
@@ -103,19 +105,21 @@
         "footer",
         "segment page"
       ],
+      "fixed_url": "https://ai.api.nvidia.com/v1/cv/nvidia/nemotron-page-elements-v3",
       "endpoint_env": "NVIDIA_NIM_PAGE_ELEMENTS_URL",
-      "auth_env": "NVIDIA_NIM_BEARER_TOKEN",
+      "auth_env": "NVIDIA_API_KEY",
       "method": "POST",
-      "path": "/v1/infer",
+      "path": "/v1/cv/nvidia/nemotron-page-elements-v3",
       "request": {
         "required_inputs": [
           "image_urls"
         ],
+        "image_input_mode": "data_url",
         "schema": {
           "input": [
             {
               "type": "image_url",
-              "url": "<image_url>"
+              "url": "<data:image/...;base64,...>"
             }
           ],
           "confidence_threshold": "number",
@@ -153,19 +157,21 @@
         "table header",
         "grid"
       ],
+      "fixed_url": "https://ai.api.nvidia.com/v1/cv/nvidia/nemoretriever-table-structure-v1",
       "endpoint_env": "NVIDIA_NIM_TABLE_STRUCTURE_URL",
-      "auth_env": "NVIDIA_NIM_BEARER_TOKEN",
+      "auth_env": "NVIDIA_API_KEY",
       "method": "POST",
-      "path": "/v1/infer",
+      "path": "/v1/cv/nvidia/nemoretriever-table-structure-v1",
       "request": {
         "required_inputs": [
           "image_urls"
         ],
+        "image_input_mode": "data_url",
         "schema": {
           "input": [
             {
               "type": "image_url",
-              "url": "<image_url>"
+              "url": "<data:image/...;base64,...>"
             }
           ],
           "confidence_threshold": "number",
@@ -204,19 +210,21 @@
         "value label",
         "plot labels"
       ],
+      "fixed_url": "https://ai.api.nvidia.com/v1/cv/nvidia/nemoretriever-graphic-elements-v1",
       "endpoint_env": "NVIDIA_NIM_GRAPHIC_ELEMENTS_URL",
-      "auth_env": "NVIDIA_NIM_BEARER_TOKEN",
+      "auth_env": "NVIDIA_API_KEY",
       "method": "POST",
-      "path": "/v1/infer",
+      "path": "/v1/cv/nvidia/nemoretriever-graphic-elements-v1",
       "request": {
         "required_inputs": [
           "image_urls"
         ],
+        "image_input_mode": "data_url",
         "schema": {
           "input": [
             {
               "type": "image_url",
-              "url": "<image_url>"
+              "url": "<data:image/...;base64,...>"
             }
           ],
           "confidence_threshold": "number",

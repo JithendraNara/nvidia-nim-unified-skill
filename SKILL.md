@@ -48,7 +48,7 @@ python3 {baseDir}/scripts/nim_router.py plan \
 
 ## Request Building
 
-Build a request without sending it:
+Build a request without sending it. For the four CV capabilities, the router accepts an `https://` URL, a local image path, or an existing `data:image/...` URL and normalizes it to the base64 data-URL format that the managed NVIDIA endpoint expects.
 
 ```bash
 python3 {baseDir}/scripts/nim_router.py build-request \
@@ -76,7 +76,7 @@ python3 {baseDir}/scripts/nim_router.py invoke \
   --image-url "https://example.com/page.png"
 ```
 
-Use `--config {baseDir}/references/nvidia-nim-config.example.json` only after copying that file and replacing example values with real endpoints or env names.
+Use `--config {baseDir}/references/nvidia-nim-config.example.json` only after copying that file and replacing example values with real endpoints or env names. By default, the bundled config targets NVIDIA's managed `ai.api.nvidia.com` endpoints for all five capabilities.
 
 ## Routing Rules
 
@@ -93,8 +93,8 @@ Use `--config {baseDir}/references/nvidia-nim-config.example.json` only after co
 
 Default auth expectations:
 
-- `rerank`: requires `NVIDIA_API_KEY`
-- self-hosted infer services: optional `NVIDIA_NIM_BEARER_TOKEN`
+- all five managed endpoints: `NVIDIA_API_KEY`
+- self-hosted overrides: optional per-capability URL override plus bearer env if you are not using the managed API
 
 Default endpoint env names:
 
@@ -109,4 +109,5 @@ These may be overridden in the shared config JSON.
 
 - The router is deterministic and rule-based. If the task is ambiguous, inspect the returned rationale instead of blindly invoking.
 - Multi-step workflows are planned automatically, but the script invokes only one capability per call.
-- `rerank` is a managed NVIDIA API path. The other four capabilities are modeled as self-hosted NIM endpoints unless your config points them elsewhere.
+- the default bundle targets NVIDIA managed APIs for all five capabilities.
+- managed CV endpoints rejected plain remote image URLs in live testing; the router converts image sources to base64 data URLs before invocation.

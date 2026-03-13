@@ -4,7 +4,9 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import json
+import mimetypes
 import os
 import re
 import sys
@@ -165,6 +167,43 @@ def load_runtime_config(path: str | None) -> dict[str, Any]:
     return load_json(Path(path))
 
 
+def guess_image_media_type(source: str, response_headers: Any | None = None) -> str:
+    if response_headers is not None:
+        content_type = response_headers.get_content_type()
+        if content_type in {"image/png", "image/jpeg", "image/jpg"}:
+            return "image/jpeg" if content_type == "image/jpg" else content_type
+    guessed, _ = mimetypes.guess_type(source)
+    if guessed in {"image/png", "image/jpeg", "image/jpg"}:
+        return "image/jpeg" if guessed == "image/jpg" else guessed
+    raise SystemExit(
+        f"Unsupported image type for `{source}`. NVIDIA managed CV endpoints require png/jpeg/jpg data URLs."
+    )
+
+
+def to_data_url(source: str) -> str:
+    if source.startswith("data:image/"):
+        return source
+
+    parsed = urllib.parse.urlparse(source)
+    if parsed.scheme in {"http", "https"}:
+        with urllib.request.urlopen(source, timeout=120) as response:
+            raw = response.read()
+            media_type = guess_image_media_type(source, response.headers)
+        return f"data:{media_type};base64,{base64.b64encode(raw).decode()}"
+
+    path = Path(source).expanduser()
+    if not path.is_absolute():
+        path = Path.cwd() / path
+    if path.exists():
+        raw = path.read_bytes()
+        media_type = guess_image_media_type(str(path))
+        return f"data:{media_type};base64,{base64.b64encode(raw).decode()}"
+
+    raise SystemExit(
+        f"Could not resolve image source `{source}`. Provide an https URL, a local file path, or a data:image/... URL."
+    )
+
+
 def join_url(base_or_url: str, path: str) -> str:
     if base_or_url.endswith(path):
         return base_or_url
@@ -218,8 +257,12 @@ def build_body(capability_name: str, capability: dict[str, Any], args: argparse.
     image_urls = args.image_url or []
     if not image_urls:
         raise SystemExit(f"`{capability_name}` requires at least one --image-url.")
+    managed_input_mode = capability["request"].get("image_input_mode")
+    image_inputs = image_urls
+    if managed_input_mode == "data_url":
+        image_inputs = [to_data_url(source) for source in image_urls]
     body: dict[str, Any] = {
-        "input": [{"type": "image_url", "url": url} for url in image_urls]
+        "input": [{"type": "image_url", "url": url} for url in image_inputs]
     }
     if capability_name == "ocr":
         merge_levels = args.merge_level or defaults.get("merge_levels")
@@ -310,7 +353,7 @@ def build_parser() -> argparse.ArgumentParser:
         command_parser = subparsers.add_parser(name, help=f"{name} for a specific capability")
         command_parser.add_argument("--capability", choices=["ocr", "page_elements", "table_structure", "graphic_elements", "rerank"], required=True)
         command_parser.add_argument("--config", help="Optional runtime config JSON")
-        command_parser.add_argument("--image-url", action="append")
+        command_parser.add_argument("--image-url", "--image-source", dest="image_url", action="append")
         command_parser.add_argument("--merge-level", action="append", choices=["word", "sentence", "paragraph"])
         command_parser.add_argument("--confidence-threshold", type=float)
         command_parser.add_argument("--nms-threshold", type=float)

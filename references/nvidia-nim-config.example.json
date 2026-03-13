@@ -1,19 +1,19 @@
 {
   "ocr": {
-    "url": "http://localhost:8001/v1/infer",
-    "bearer_env": "NVIDIA_NIM_BEARER_TOKEN"
+    "url": "https://ai.api.nvidia.com/v1/cv/nvidia/nemotron-ocr-v1",
+    "bearer_env": "NVIDIA_API_KEY"
   },
   "page_elements": {
-    "url": "http://localhost:8002/v1/infer",
-    "bearer_env": "NVIDIA_NIM_BEARER_TOKEN"
+    "url": "https://ai.api.nvidia.com/v1/cv/nvidia/nemotron-page-elements-v3",
+    "bearer_env": "NVIDIA_API_KEY"
   },
   "table_structure": {
-    "url": "http://localhost:8003/v1/infer",
-    "bearer_env": "NVIDIA_NIM_BEARER_TOKEN"
+    "url": "https://ai.api.nvidia.com/v1/cv/nvidia/nemoretriever-table-structure-v1",
+    "bearer_env": "NVIDIA_API_KEY"
   },
   "graphic_elements": {
-    "url": "http://localhost:8004/v1/infer",
-    "bearer_env": "NVIDIA_NIM_BEARER_TOKEN"
+    "url": "https://ai.api.nvidia.com/v1/cv/nvidia/nemoretriever-graphic-elements-v1",
+    "bearer_env": "NVIDIA_API_KEY"
   },
   "rerank": {
     "url": "https://ai.api.nvidia.com/v1/retrieval/nvidia/llama-nemotron-rerank-1b-v2/reranking",

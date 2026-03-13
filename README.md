@@ -51,7 +51,7 @@ This repo is intentionally plain AgentSkills format. Copy or symlink the repo in
 
 ## Configure Endpoints
 
-Copy the example config and replace the URLs with your actual endpoints:
+Copy the example config and replace the URLs only if you want to override the managed defaults:
 
 ```bash
 cp references/nvidia-nim-config.example.json references/nvidia-nim-config.json
@@ -59,8 +59,8 @@ cp references/nvidia-nim-config.example.json references/nvidia-nim-config.json
 
 Expected auth:
 
-- `NVIDIA_API_KEY` for managed reranking
-- `NVIDIA_NIM_BEARER_TOKEN` for self-hosted infer services when required
+- `NVIDIA_API_KEY` for all managed endpoints in this bundle
+- `NVIDIA_NIM_BEARER_TOKEN` only if you override a capability to point at a self-hosted service that needs it
 
 Expected endpoint env vars:
 
@@ -68,6 +68,14 @@ Expected endpoint env vars:
 - `NVIDIA_NIM_PAGE_ELEMENTS_URL`
 - `NVIDIA_NIM_TABLE_STRUCTURE_URL`
 - `NVIDIA_NIM_GRAPHIC_ELEMENTS_URL`
+
+For the four CV capabilities, the router accepts:
+
+- an `https://` image URL
+- a local file path
+- an existing `data:image/...` URL
+
+It converts the image source to the base64 data-URL format that the managed NVIDIA CV endpoints actually require.
 
 ## Usage
 
@@ -113,5 +121,5 @@ clawhub publish . \
 ## Notes
 
 - This repo unifies multiple NVIDIA services at the routing layer, not by pretending they share one OpenAPI contract.
-- The four image/document capabilities are modeled as self-hosted `/v1/infer` services.
-- The rerank capability targets NVIDIA's managed API endpoint.
+- The current defaults target NVIDIA managed `ai.api.nvidia.com` endpoints for all five capabilities.
+- In live testing on March 13, 2026, the four managed CV endpoints rejected plain HTTP image URLs and accepted base64 `data:image/...` payloads.
