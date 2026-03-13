@@ -1,0 +1,73 @@
+name: nvidia-nim-unified
+version: 1.0.0
+description: Unified routing skill for NVIDIA NIM OCR, layout, table/chart detection, and passage reranking
+author: Jithendra Nara
+license: MIT
+
+requires:
+  - python3
+  - outbound HTTP access for invoke mode
+
+config:
+  - name: NVIDIA_API_KEY
+    description: NVIDIA API key for managed reranking
+    required: false
+    secret: true
+
+  - name: NVIDIA_NIM_BEARER_TOKEN
+    description: Optional bearer token for self-hosted NIM infer services
+    required: false
+    secret: true
+
+  - name: NVIDIA_NIM_OCR_URL
+    description: Base URL or full infer URL for OCR NIM
+    required: false
+    example: http://localhost:8001
+
+  - name: NVIDIA_NIM_PAGE_ELEMENTS_URL
+    description: Base URL or full infer URL for page elements NIM
+    required: false
+    example: http://localhost:8002
+
+  - name: NVIDIA_NIM_TABLE_STRUCTURE_URL
+    description: Base URL or full infer URL for table structure NIM
+    required: false
+    example: http://localhost:8003
+
+  - name: NVIDIA_NIM_GRAPHIC_ELEMENTS_URL
+    description: Base URL or full infer URL for graphic elements NIM
+    required: false
+    example: http://localhost:8004
+
+capabilities:
+  - OCR text extraction from document images
+  - Page layout detection for titles, paragraphs, tables, charts, and header/footer
+  - Table structure detection for border, cell, row, column, and header boxes
+  - Graphic element detection for chart labels, legends, axes, and value labels
+  - Passage reranking against a user query
+  - Multi-step workflow planning across the above capabilities
+
+entrypoints:
+  plan: python3 scripts/nim_router.py plan --task-query "<task>"
+  build_request: python3 scripts/nim_router.py build-request --capability <capability> ...
+  invoke: python3 scripts/nim_router.py invoke --capability <capability> ...
+
+workflows:
+  - name: document-qa
+    sequence:
+      - ocr
+      - rerank
+  - name: layout-aware-table-extraction
+    sequence:
+      - page_elements
+      - table_structure
+      - ocr
+  - name: chart-aware-extraction
+    sequence:
+      - page_elements
+      - graphic_elements
+      - ocr
+
+notes:
+  - This skill is a unified router, not a fake merged OpenAPI endpoint.
+  - Use references/nim-capabilities.json for exact normalized request and response shapes.

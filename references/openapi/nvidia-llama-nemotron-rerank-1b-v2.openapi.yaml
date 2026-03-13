@@ -1,0 +1,313 @@
+openapi: 3.1.0
+info:
+  title: NVIDIA NIM API for nvidia/llama-nemotron-rerank-1b-v2
+  description: >-
+    The NVIDIA NIM REST API. Please see
+    https://docs.api.nvidia.com/nim/reference/nvidia-llama-nemotron-rerank-1b-v2
+    for more details.
+  version: 1.0.0
+  termsOfService: https://nvidia.com/legal/terms-of-use
+  contact:
+    name: NVIDIA Support
+    url: https://help.nvidia.com/
+servers:
+  - url: https://ai.api.nvidia.com/v1
+paths:
+  /retrieval/nvidia/llama-nemotron-rerank-1b-v2/reranking:
+    post:
+      tags:
+        - Reranking
+      summary: Rank passages by their relation to a query.
+      description: |-
+        Order a list of passages by their relation to a query.
+
+        Note that if a given query + passage pair is longer than the ranking model's context window,
+        it will be automatically truncated.
+      operationId: rank
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RankRequest'
+      x-nvai-meta:
+        name: Passage Reranking
+        description: Ranks a list of passages based on their relevance to a provided query using a specific model.
+        path: create
+        examples:
+          - name: Passage Reranking
+            description: Ranks a list of passages based on their relevance to a provided query using a specific model.
+            requestJson: |-
+              {
+                "model": "nvidia/llama-nemotron-rerank-1b-v2",
+                "query": {
+                  "text": "What is the GPU memory bandwidth of H100 SXM?"
+                },
+                "passages": [
+                  {
+                    "text": "The Hopper GPU is paired with the Grace CPU using NVIDIA's ultra-fast chip-to-chip interconnect, delivering 900GB/s of bandwidth, 7X faster than PCIe Gen5. This innovative design will deliver up to 30X higher aggregate system memory bandwidth to the GPU compared to today's fastest servers and up to 10X higher performance for applications running terabytes of data."
+                  },
+                  {
+                    "text": "A100 provides up to 20X higher performance over the prior generation and can be partitioned into seven GPU instances to dynamically adjust to shifting demands. The A100 80GB debuts the world's fastest memory bandwidth at over 2 terabytes per second (TB/s) to run the largest models and datasets."
+                  },
+                  {
+                    "text": "Accelerated servers with H100 deliver the compute power-along with 3 terabytes per second (TB/s) of memory bandwidth per GPU and scalability with NVLink and NVSwitch."
+                  }
+                ]
+              }
+            responseJson: |-
+              {
+                "rankings": [
+                  {
+                    "index": 2,
+                    "logit": 4.55078125
+                  },
+                  {
+                    "index": 0,
+                    "logit": -1.70703125
+                  },
+                  {
+                    "index": 1,
+                    "logit": -5.12109375
+                  }
+                ],
+                "usage": {
+                  "prompt_tokens": 233,
+                  "total_tokens": 233
+                }
+              }
+          - name: Passage Reranking
+            description: Ranks a list of passages based on their relevance to a provided query using a specific model.
+            requestJson: |-
+              {
+                "model": "nvidia/llama-nemotron-rerank-1b-v2",
+                "query": {
+                  "text": "What are the benefits of NVIDIA Morpheus?"
+                },
+                "passages": [
+                  {
+                    "text": "Morpheus integrates tools to make it easier to build cybersecurity solutions. Built on the NVIDIA AI platform, including RAPIDS libraries, deep learning frameworks, and NVIDIA Triton Inference Server, Morpheus simplifies the analysis of logs and telemetry to help detect and mitigate security threats."
+                  },
+                  {
+                    "text": "Morpheus can receive rich, real-time network telemetry from every NVIDIA BlueField DPU-accelerated server and NVIDIA DOCA-based application, including Telemetry Flow Inspector and App Shield, in the data center without impacting performance. Integrating the framework into a third-party cybersecurity offering brings the world's best AI computing to communication networks."
+                  },
+                  {
+                    "text": "Morpheus is a GPU-accelerated SDK enabling, for the first time, the ability to inspect all network traffic in real time, flag anomalies, and provide insights on these anomalies so that threats can be addressed quickly."
+                  },
+                  {
+                    "text": "Integrate Triton Inference Server into DevOps and MLOps solutions such as Kubernetes for scaling and Prometheus for monitoring. It can also be used in all major cloud and on-premises AI and MLOps platforms."
+                  },
+                  {
+                    "text": "NVIDIA AI Enterprise, including NVIDIA Triton Inference Server, is a secure, production-ready AI software platform designed to accelerate time to value with support, security, and API stability."
+                  },
+                  {
+                    "text": "Morpheus ('Fashioner', derived from the Ancient Greek: morph meaning 'form, shape') is a god associated with sleep and dreams. In Ovid's Metamorphoses he is the son of Somnus and appears in dreams in human form. From the Middle Ages, the name began to stand more generally for the god of dreams, or of sleep."
+                  }
+                ]
+              }
+            responseJson: |-
+              {
+                "rankings": [
+                  {
+                    "index": 0,
+                    "logit": 11.375
+                  },
+                  {
+                    "index": 2,
+                    "logit": 10.2421875
+                  },
+                  {
+                    "index": 1,
+                    "logit": 10.2421875
+                  },
+                  {
+                    "index": 3,
+                    "logit": -9.1015625
+                  },
+                  {
+                    "index": 4,
+                    "logit": -10.2421875
+                  },
+                  {
+                    "index": 5,
+                    "logit": -15.9296875
+                  }
+                ],
+                "usage": {
+                  "prompt_tokens": 434,
+                  "total_tokens": 434
+                }
+              }
+        templates:
+          - title: Synchronous requests
+            requestEjs:
+              python: ''
+              node.js: ''
+              curl: |-
+                invoke_url="https://ai.api.nvidia.com/v1/retrieval/nvidia/llama-nemotron-rerank-1b-v2/reranking"
+
+                authorization_header="Authorization: Bearer $NVIDIA_API_KEY"
+                accept_header="Accept: application/json"
+                content_type_header="Content-Type: application/json"
+
+                data=$'{
+                  "model": "<%- request.model %>",
+                  "query": {
+                    "text": "<%- request.query.text.replace(/'/g, "\\'") %>"
+                  },
+                  "passages": [<% request.passages.forEach(function(passage, idx) { %>
+                    {
+                      "text": "<%- passage.text.replace(/'/g, "\\'") %>"
+                    }<% if (idx < request.passages.length - 1) { %>,<% } %>
+                  <% }); %>
+                  ]
+                }'
+
+                response=$(curl -s -X POST "$invoke_url" -H "$authorization_header" -H "$accept_header" -H "$content_type_header" -d "$data")
+
+                echo "$response"
+      responses:
+        '200':
+          description: The ranked list of texts.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RankResponse'
+        '402':
+          description: Payment Required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentRequiredError'
+        '422':
+          description: The request was invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+security:
+  - Token: []
+components:
+  securitySchemes:
+    Token:
+      type: http
+      scheme: bearer
+  schemas:
+    MultiModalData:
+      title: MultiModalData
+      type: object
+      properties:
+        text:
+          title: Text
+          type: string
+          minLength: 1
+          maxLength: 14598366
+          pattern: .*
+      required:
+        - text
+    RankRequest:
+      title: RankRequest
+      type: object
+      properties:
+        model:
+          title: Model
+          type: string
+          description: The model to use for ranking.
+          default: nvidia/llama-nemotron-rerank-1b-v2
+        query:
+          $ref: '#/components/schemas/MultiModalData'
+        passages:
+          title: Passages
+          type: array
+          description: The list of passages to rank.
+          minItems: 1
+          maxItems: 1000
+          items:
+            $ref: '#/components/schemas/MultiModalData'
+        truncate:
+          title: Truncate
+          type: string
+          description: How to truncate the input if it's too long for the model.
+          enum:
+            - NONE
+            - END
+          default: END
+      required:
+        - model
+        - query
+        - passages
+    RankResponse:
+      title: RankResponse
+      type: object
+      properties:
+        rankings:
+          title: Rankings
+          type: array
+          description: The ranked list of passages.
+          items:
+            $ref: '#/components/schemas/Ranking'
+      required:
+        - rankings
+    Ranking:
+      title: Ranking
+      type: object
+      properties:
+        index:
+          title: Index
+          type: integer
+          description: The index of the passage in the original list.
+        logit:
+          title: Logit
+          type: number
+          description: The logit score for the passage.
+      required:
+        - index
+        - logit
+    PaymentRequiredError:
+      title: PaymentRequiredError
+      type: object
+      properties:
+        detail:
+          title: Detail
+          type: string
+          description: Error detail message.
+        type:
+          title: Type
+          type: string
+          description: Error type.
+      required:
+        - detail
+        - type
+    HTTPValidationError:
+      title: HTTPValidationError
+      type: object
+      properties:
+        detail:
+          title: Detail
+          type: array
+          items:
+            $ref: '#/components/schemas/ValidationError'
+    ValidationError:
+      title: ValidationError
+      type: object
+      properties:
+        loc:
+          title: Location
+          type: array
+          items:
+            anyOf:
+              - type: string
+              - type: integer
+        msg:
+          title: Message
+          type: string
+        type:
+          title: Error Type
+          type: string
+      required:
+        - loc
+        - msg
+        - type
+x-readme:
+  explorer-enabled: true
+  proxy-enabled: true

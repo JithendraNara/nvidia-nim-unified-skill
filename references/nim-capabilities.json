@@ -1,0 +1,324 @@
+{
+  "name": "nvidia-nim-unified",
+  "version": "1.0.0",
+  "sources": [
+    {
+      "capability": "ocr",
+      "source_file": "references/openapi/nemotron-ocr-v1.openapi.yaml",
+      "source_url": null
+    },
+    {
+      "capability": "table_structure",
+      "source_file": "references/openapi/table_structure.openapi.yaml",
+      "source_url": null
+    },
+    {
+      "capability": "graphic_elements",
+      "source_file": "references/openapi/graphic_elements.openapi.yaml",
+      "source_url": null
+    },
+    {
+      "capability": "page_elements",
+      "source_file": "references/openapi/page_elements.openapi.yaml",
+      "source_url": null
+    },
+    {
+      "capability": "rerank",
+      "source_file": "references/openapi/nvidia-llama-nemotron-rerank-1b-v2.openapi.yaml",
+      "source_url": "https://docs.api.nvidia.com/nim/reference/nvidia-llama-nemotron-rerank-1b-v2"
+    }
+  ],
+  "capabilities": {
+    "ocr": {
+      "display_name": "Image OCR",
+      "kind": "document_text_extraction",
+      "keywords": [
+        "ocr",
+        "extract text",
+        "read text",
+        "transcribe image",
+        "scan text",
+        "document text",
+        "receipt text",
+        "invoice text",
+        "page text"
+      ],
+      "endpoint_env": "NVIDIA_NIM_OCR_URL",
+      "auth_env": "NVIDIA_NIM_BEARER_TOKEN",
+      "method": "POST",
+      "path": "/v1/infer",
+      "request": {
+        "required_inputs": [
+          "image_urls"
+        ],
+        "schema": {
+          "input": [
+            {
+              "type": "image_url",
+              "url": "<image_url>"
+            }
+          ],
+          "merge_levels": [
+            "word",
+            "sentence",
+            "paragraph"
+          ]
+        },
+        "defaults": {
+          "merge_levels": [
+            "paragraph"
+          ]
+        }
+      },
+      "response": {
+        "top_level_fields": [
+          "data",
+          "usage"
+        ],
+        "item_shape": {
+          "index": "integer",
+          "text_detections": [
+            {
+              "text_prediction": {
+                "text": "string",
+                "confidence": "number|null"
+              },
+              "bounding_box": "polygon"
+            }
+          ]
+        }
+      }
+    },
+    "page_elements": {
+      "display_name": "Page Elements",
+      "kind": "document_layout_detection",
+      "keywords": [
+        "page layout",
+        "layout",
+        "page elements",
+        "paragraph",
+        "title block",
+        "header footer",
+        "header",
+        "footer",
+        "segment page"
+      ],
+      "endpoint_env": "NVIDIA_NIM_PAGE_ELEMENTS_URL",
+      "auth_env": "NVIDIA_NIM_BEARER_TOKEN",
+      "method": "POST",
+      "path": "/v1/infer",
+      "request": {
+        "required_inputs": [
+          "image_urls"
+        ],
+        "schema": {
+          "input": [
+            {
+              "type": "image_url",
+              "url": "<image_url>"
+            }
+          ],
+          "confidence_threshold": "number",
+          "nms_threshold": "number"
+        },
+        "defaults": {
+          "confidence_threshold": 0.01,
+          "nms_threshold": 0.5
+        }
+      },
+      "response": {
+        "top_level_fields": [
+          "data",
+          "usage"
+        ],
+        "labels": [
+          "table",
+          "chart",
+          "title",
+          "infographic",
+          "paragraph",
+          "header_footer"
+        ]
+      }
+    },
+    "table_structure": {
+      "display_name": "Table Structure",
+      "kind": "table_detection",
+      "keywords": [
+        "table",
+        "cell",
+        "row",
+        "column",
+        "table structure",
+        "table header",
+        "grid"
+      ],
+      "endpoint_env": "NVIDIA_NIM_TABLE_STRUCTURE_URL",
+      "auth_env": "NVIDIA_NIM_BEARER_TOKEN",
+      "method": "POST",
+      "path": "/v1/infer",
+      "request": {
+        "required_inputs": [
+          "image_urls"
+        ],
+        "schema": {
+          "input": [
+            {
+              "type": "image_url",
+              "url": "<image_url>"
+            }
+          ],
+          "confidence_threshold": "number",
+          "nms_threshold": "number"
+        },
+        "defaults": {
+          "confidence_threshold": 0.01,
+          "nms_threshold": 0.25
+        }
+      },
+      "response": {
+        "top_level_fields": [
+          "data",
+          "usage"
+        ],
+        "labels": [
+          "border",
+          "cell",
+          "row",
+          "column",
+          "header"
+        ]
+      }
+    },
+    "graphic_elements": {
+      "display_name": "Graphic Elements",
+      "kind": "chart_annotation_detection",
+      "keywords": [
+        "chart",
+        "graph",
+        "legend",
+        "axis",
+        "xlabel",
+        "ylabel",
+        "chart title",
+        "value label",
+        "plot labels"
+      ],
+      "endpoint_env": "NVIDIA_NIM_GRAPHIC_ELEMENTS_URL",
+      "auth_env": "NVIDIA_NIM_BEARER_TOKEN",
+      "method": "POST",
+      "path": "/v1/infer",
+      "request": {
+        "required_inputs": [
+          "image_urls"
+        ],
+        "schema": {
+          "input": [
+            {
+              "type": "image_url",
+              "url": "<image_url>"
+            }
+          ],
+          "confidence_threshold": "number",
+          "nms_threshold": "number"
+        },
+        "defaults": {
+          "confidence_threshold": 0.01,
+          "nms_threshold": 0.25
+        }
+      },
+      "response": {
+        "top_level_fields": [
+          "data",
+          "usage"
+        ],
+        "labels": [
+          "chart_title",
+          "x_title",
+          "y_title",
+          "xlabel",
+          "ylabel",
+          "other",
+          "legend_label",
+          "legend_title",
+          "mark_label",
+          "value_label"
+        ]
+      }
+    },
+    "rerank": {
+      "display_name": "Passage Reranking",
+      "kind": "retrieval_reranking",
+      "keywords": [
+        "rerank",
+        "rank passages",
+        "relevance",
+        "most relevant",
+        "search results",
+        "retrieval",
+        "best chunk",
+        "rank chunks"
+      ],
+      "fixed_url": "https://ai.api.nvidia.com/v1/retrieval/nvidia/llama-nemotron-rerank-1b-v2/reranking",
+      "auth_env": "NVIDIA_API_KEY",
+      "method": "POST",
+      "path": "/retrieval/nvidia/llama-nemotron-rerank-1b-v2/reranking",
+      "request": {
+        "required_inputs": [
+          "query_text",
+          "passages"
+        ],
+        "schema": {
+          "model": "nvidia/llama-nemotron-rerank-1b-v2",
+          "query": {
+            "text": "<query_text>"
+          },
+          "passages": [
+            {
+              "text": "<passage>"
+            }
+          ],
+          "truncate": "NONE|END"
+        },
+        "defaults": {
+          "model": "nvidia/llama-nemotron-rerank-1b-v2",
+          "truncate": "END"
+        }
+      },
+      "response": {
+        "top_level_fields": [
+          "rankings"
+        ],
+        "item_shape": {
+          "index": "integer",
+          "logit": "number"
+        }
+      }
+    }
+  },
+  "workflow_templates": {
+    "ocr_then_rerank": {
+      "sequence": [
+        "ocr",
+        "rerank"
+      ],
+      "use_when": "The task asks to read text from an image and then rank, filter, or score the extracted chunks against a question."
+    },
+    "layout_aware_table_extraction": {
+      "sequence": [
+        "page_elements",
+        "table_structure",
+        "ocr"
+      ],
+      "use_when": "The task asks for text extraction from a document while preserving table regions or table structure."
+    },
+    "chart_aware_extraction": {
+      "sequence": [
+        "page_elements",
+        "graphic_elements",
+        "ocr"
+      ],
+      "use_when": "The task asks to understand chart labels, legends, or axes while also reading surrounding page content."
+    }
+  }
+}

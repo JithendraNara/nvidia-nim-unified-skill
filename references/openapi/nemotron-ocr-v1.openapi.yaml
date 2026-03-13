@@ -1,0 +1,417 @@
+openapi: 3.1.0
+info:
+  title: NVIDIA NIM for Image OCR
+  description: NVIDIA NIM for Image OCR
+  version: 1.0.0
+paths:
+  /v1/infer:
+    post:
+      summary: Post V1 Infer
+      operationId: post_v1_infer_v1_infer_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OCRRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OCRResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+        '503':
+          description: Service not ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/health/live:
+    get:
+      summary: Health Live
+      description: Check if the service is running.
+      operationId: health_live_v1_health_live_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthLiveResponse'
+        '503':
+          description: Service not live
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthLiveResponse'
+  /v1/health/ready:
+    get:
+      summary: Health Ready
+      description: Check if the service is ready to recieve traffic.
+      operationId: health_ready_v1_health_ready_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthReadyResponse'
+        '503':
+          description: Service not ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthReadyResponse'
+  /v1/metrics:
+    get:
+      summary: Metrics
+      description: Handler for metrics endpoint.
+      operationId: metrics_v1_metrics_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: string
+                title: Response Metrics V1 Metrics Get
+  /v1/license:
+    get:
+      summary: License
+      description: Handler for license endpoint.
+      operationId: license_v1_license_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LicenseEndpointModel'
+  /v1/metadata:
+    get:
+      summary: Metadata
+      description: Handler for metadata endpoint.
+      operationId: metadata_v1_metadata_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetadataEndpointModel'
+  /v1/manifest:
+    get:
+      summary: Manifest
+      description: Handler for the manifest endpoint.
+      operationId: manifest_v1_manifest_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManifestEndpointModel'
+components:
+  schemas:
+    ErrorResponse:
+      properties:
+        error:
+          title: Error
+          type: string
+      required:
+      - error
+      type: object
+      title: ErrorResponse
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    HealthLiveResponse:
+      properties:
+        live:
+          type: boolean
+          title: Live
+      type: object
+      required:
+      - live
+      title: HealthLiveResponse
+    HealthReadyResponse:
+      properties:
+        ready:
+          type: boolean
+          title: Ready
+      type: object
+      required:
+      - ready
+      title: HealthReadyResponse
+    Image:
+      properties:
+        type:
+          type: string
+          const: image_url
+          title: Type
+          default: image_url
+        url:
+          type: string
+          title: Url
+          description: The URL of the image to process.
+      type: object
+      required:
+      - url
+      title: Image
+    LicenseEndpointModel:
+      properties:
+        name:
+          type: string
+          title: Name
+          description: The name of the license for the NIM container.
+        path:
+          type: string
+          title: Path
+          description: The filepath within the container containing the license content.
+        sha:
+          type: string
+          title: Sha
+          description: A SHA1 hash of the license contents.
+        size:
+          type: integer
+          title: Size
+          description: The number of characters in the license content.
+        url:
+          type: string
+          title: Url
+          description: The url where this license is hosted externally.
+        type:
+          type: string
+          const: file
+          title: Type
+          description: The format of the license content.
+        content:
+          type: string
+          title: Content
+          description: The license text.
+      type: object
+      required:
+      - name
+      - path
+      - sha
+      - size
+      - url
+      - type
+      - content
+      title: LicenseEndpointModel
+      description: A model representing the license response.
+    ManifestEndpointModel:
+      properties:
+        manifest_file:
+          type: string
+          title: Manifest File
+          description: The content of the manifest file describing the required model
+            artifacts.
+        repository_override:
+          type: string
+          title: Repository Override
+          description: Alternate location used to retrieve artifacts from manifest
+            file.
+      type: object
+      required:
+      - manifest_file
+      - repository_override
+      title: ManifestEndpointModel
+      description: A model representing the manifest response.
+    MergeLevel:
+      type: string
+      enum:
+      - word
+      - sentence
+      - paragraph
+      title: MergeLevel
+    MetadataEndpointModel:
+      properties:
+        assetInfo:
+          items:
+            type: string
+          type: array
+          title: Assetinfo
+          description: A list of required container assets excluding model artifacts
+        licenseInfo:
+          $ref: '#/components/schemas/LicenseEndpointModel'
+          description: The license info.
+        modelInfo:
+          items:
+            $ref: '#/components/schemas/ModelInfo'
+          type: array
+          title: Modelinfo
+          description: A list of models being served by the NIM.
+        repository_override:
+          type: string
+          title: Repository Override
+          description: Alternate location used to retrieve artifacts from manifest
+            file.
+        version:
+          type: string
+          title: Version
+          description: The version of the NIM service.
+      type: object
+      required:
+      - assetInfo
+      - licenseInfo
+      - modelInfo
+      - repository_override
+      - version
+      title: MetadataEndpointModel
+      description: A model representing the metadata response.
+    ModelInfo:
+      properties:
+        modelUrl:
+          type: string
+          title: Modelurl
+        shortName:
+          type: string
+          title: Shortname
+      type: object
+      required:
+      - modelUrl
+      - shortName
+      title: ModelInfo
+      description: A model representing the model response.
+    OCRRequest:
+      properties:
+        input:
+          items:
+            $ref: '#/components/schemas/Image'
+          type: array
+          minItems: 1
+          title: Input
+        merge_levels:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/MergeLevel'
+            type: array
+          - type: 'null'
+          title: Merge Levels
+          description: The level at which to merge the OCR results for each image.
+      type: object
+      required:
+      - input
+      title: OCRRequest
+    OCRResponse:
+      properties:
+        data:
+          items:
+            $ref: '#/components/schemas/OCRResponseItem'
+          type: array
+          title: Data
+        usage:
+          $ref: '#/components/schemas/UsageInfo'
+      type: object
+      required:
+      - data
+      - usage
+      title: OCRResponse
+    OCRResponseItem:
+      properties:
+        index:
+          type: integer
+          title: Index
+        text_detections:
+          items:
+            $ref: '#/components/schemas/TextDetection'
+          type: array
+          title: Text Detections
+      type: object
+      required:
+      - index
+      - text_detections
+      title: OCRResponseItem
+    Point:
+      properties:
+        x:
+          type: number
+          title: X
+        y:
+          type: number
+          title: Y
+      type: object
+      required:
+      - x
+      - y
+      title: Point
+    Polygon:
+      properties:
+        points:
+          items:
+            $ref: '#/components/schemas/Point'
+          type: array
+          title: Points
+      type: object
+      required:
+      - points
+      title: Polygon
+    Text:
+      properties:
+        text:
+          type: string
+          title: Text
+        confidence:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Confidence
+      type: object
+      required:
+      - text
+      title: Text
+    TextDetection:
+      properties:
+        text_prediction:
+          $ref: '#/components/schemas/Text'
+        bounding_box:
+          $ref: '#/components/schemas/Polygon'
+      type: object
+      required:
+      - text_prediction
+      - bounding_box
+      title: TextDetection
+    UsageInfo:
+      properties:
+        images_size_mb:
+          type: number
+          title: Images Size Mb
+      type: object
+      required:
+      - images_size_mb
+      title: UsageInfo
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError

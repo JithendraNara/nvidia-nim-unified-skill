@@ -1,0 +1,7 @@
+interface:
+  display_name: "NVIDIA NIM Unified"
+  short_description: "Route OCR, layout, tables, charts, and reranking"
+  default_prompt: "Use $nvidia-nim-unified to choose the right NVIDIA NIM capability and build or invoke the correct request."
+
+policy:
+  allow_implicit_invocation: true

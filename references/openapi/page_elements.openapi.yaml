@@ -1,0 +1,551 @@
+openapi: 3.1.0
+info:
+  title: NeMo Retriever Page Elements v3
+  version: 1.7.0
+  description: Object detection of tables, charts,
+    titles, infographics, paragraphs, and header/footer in structured images.
+paths:
+  /v1/infer:
+    post:
+      summary: Inference Endpoint
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PageElementsRequest'
+        required: true
+      responses:
+        '200':
+          description: Detected bounding boxes returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageElementsResponse'
+        '503':
+          description: Service not ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/health/ready:
+    get:
+      summary: Readiness Endpoint
+      responses:
+        '200':
+          description: Service ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthReadyResponse'
+        '503':
+          description: Service not ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthReadyResponse'
+  /v1/health/live:
+    get:
+      summary: Liveness Endpoint
+      responses:
+        '200':
+          description: Service live
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthLiveResponse'
+        '503':
+          description: Service not live
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthLiveResponse'
+  /v1/triton-inference-statistics:
+    get:
+      summary: Inference Statistics
+      responses:
+        '200':
+          description: Inference statistics returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelStatisticsResponse'
+  /v1/metrics:
+    get:
+      summary: Metrics
+      description: Handler for metrics endpoint.
+      operationId: metrics_v1_metrics_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: string
+                title: Response Metrics V1 Metrics Get
+  /v1/license:
+    get:
+      summary: License
+      description: Handler for license endpoint.
+      operationId: license_v1_license_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LicenseEndpointModel'
+  /v1/metadata:
+    get:
+      summary: Metadata
+      description: Handler for metadata endpoint.
+      operationId: metadata_v1_metadata_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetadataEndpointModel'
+  /v1/manifest:
+    get:
+      summary: Manifest
+      description: Handler for the manifest endpoint.
+      operationId: manifest_v1_manifest_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManifestEndpointModel'
+  /v1/models:
+    get:
+      summary: Get Models
+      operationId: get_models_v1_models_get
+      responses:
+        '200':
+          description: The available models loaded in the service.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelsResponse'
+components:
+  schemas:
+    PageElementsRequest:
+      $defs:
+        Image:
+          properties:
+            type:
+              const: image_url
+              default: image_url
+              title: Type
+              type: string
+            url:
+              description: The URL of the image to process.
+              title: Url
+              type: string
+          required:
+          - url
+          title: Image
+          type: object
+      properties:
+        input:
+          items:
+            $ref: '#/components/schemas/PageElementsRequest/$defs/Image'
+          minItems: 1
+          title: Input
+          type: array
+        confidence_threshold:
+          default: 0.01
+          description: Threshold for filtering low-confidence predictions
+          title: Confidence Threshold
+          type: number
+        nms_threshold:
+          default: 0.5
+          description: Threshold for filtering overlapping predictions via non-max
+            suppression
+          title: Nms Threshold
+          type: number
+      required:
+      - input
+      title: PageElementsRequest
+      type: object
+    PageElementsResponse:
+      $defs:
+        BoundingBox:
+          properties:
+            x_min:
+              title: X Min
+              type: number
+            y_min:
+              title: Y Min
+              type: number
+            x_max:
+              title: X Max
+              type: number
+            y_max:
+              title: Y Max
+              type: number
+            confidence:
+              title: Confidence
+              type: number
+          required:
+          - x_min
+          - y_min
+          - x_max
+          - y_max
+          - confidence
+          title: BoundingBox
+          type: object
+        PageElementsResponseItem:
+          properties:
+            index:
+              title: Index
+              type: integer
+            bounding_boxes:
+              additionalProperties:
+                items:
+                  $ref: '#/components/schemas/PageElementsResponse/$defs/BoundingBox'
+                type: array
+              propertyNames:
+                enum:
+                - table
+                - chart
+                - title
+                - infographic
+                - paragraph
+                - header_footer
+              title: Bounding Boxes
+              type: object
+          required:
+          - index
+          - bounding_boxes
+          title: PageElementsResponseItem
+          type: object
+        UsageInfo:
+          properties:
+            images_size_mb:
+              title: Images Size Mb
+              type: number
+          required:
+          - images_size_mb
+          title: UsageInfo
+          type: object
+      properties:
+        data:
+          items:
+            $ref: '#/components/schemas/PageElementsResponse/$defs/PageElementsResponseItem'
+          title: Data
+          type: array
+        usage:
+          $ref: '#/components/schemas/PageElementsResponse/$defs/UsageInfo'
+      required:
+      - data
+      - usage
+      title: PageElementsResponse
+      type: object
+    ErrorResponse:
+      properties:
+        error:
+          title: Error
+          type: string
+      required:
+      - error
+      title: ErrorResponse
+      type: object
+    HealthReadyResponse:
+      properties:
+        ready:
+          title: Ready
+          type: boolean
+      required:
+      - ready
+      title: HealthReadyResponse
+      type: object
+    HealthLiveResponse:
+      properties:
+        live:
+          title: Live
+          type: boolean
+      required:
+      - live
+      title: HealthLiveResponse
+      type: object
+    ModelStatisticsResponse:
+      $defs:
+        BatchStat:
+          properties:
+            batch_size:
+              title: Batch Size
+              type: integer
+            compute_input:
+              $ref: '#/components/schemas/ModelStatisticsResponse/$defs/Statistic'
+            compute_infer:
+              $ref: '#/components/schemas/ModelStatisticsResponse/$defs/Statistic'
+            compute_output:
+              $ref: '#/components/schemas/ModelStatisticsResponse/$defs/Statistic'
+          required:
+          - batch_size
+          - compute_input
+          - compute_infer
+          - compute_output
+          title: BatchStat
+          type: object
+        InferenceStatisticsDetail:
+          properties:
+            success:
+              $ref: '#/components/schemas/ModelStatisticsResponse/$defs/Statistic'
+            fail:
+              $ref: '#/components/schemas/ModelStatisticsResponse/$defs/Statistic'
+            queue:
+              $ref: '#/components/schemas/ModelStatisticsResponse/$defs/Statistic'
+            compute_input:
+              $ref: '#/components/schemas/ModelStatisticsResponse/$defs/Statistic'
+            compute_infer:
+              $ref: '#/components/schemas/ModelStatisticsResponse/$defs/Statistic'
+            compute_output:
+              $ref: '#/components/schemas/ModelStatisticsResponse/$defs/Statistic'
+            cache_hit:
+              $ref: '#/components/schemas/ModelStatisticsResponse/$defs/Statistic'
+            cache_miss:
+              $ref: '#/components/schemas/ModelStatisticsResponse/$defs/Statistic'
+          required:
+          - success
+          - fail
+          - queue
+          - compute_input
+          - compute_infer
+          - compute_output
+          - cache_hit
+          - cache_miss
+          title: InferenceStatisticsDetail
+          type: object
+        ModelStat:
+          properties:
+            name:
+              title: Name
+              type: string
+            version:
+              title: Version
+              type: string
+            last_inference:
+              title: Last Inference
+              type: integer
+            inference_count:
+              title: Inference Count
+              type: integer
+            execution_count:
+              title: Execution Count
+              type: integer
+            inference_stats:
+              $ref: '#/components/schemas/ModelStatisticsResponse/$defs/InferenceStatisticsDetail'
+            response_stats:
+              anyOf:
+              - type: object
+              - type: 'null'
+              default: null
+              title: Response Stats
+            memory_usage:
+              anyOf:
+              - items: {}
+                type: array
+              - type: 'null'
+              default: null
+              title: Memory Usage
+            batch_stats:
+              items:
+                $ref: '#/components/schemas/ModelStatisticsResponse/$defs/BatchStat'
+              title: Batch Stats
+              type: array
+          required:
+          - name
+          - version
+          - last_inference
+          - inference_count
+          - execution_count
+          - inference_stats
+          - batch_stats
+          title: ModelStat
+          type: object
+        Statistic:
+          properties:
+            count:
+              default: 0
+              title: Count
+              type: integer
+            ns:
+              default: 0
+              title: Ns
+              type: integer
+          title: Statistic
+          type: object
+      properties:
+        model_stats:
+          items:
+            $ref: '#/components/schemas/ModelStatisticsResponse/$defs/ModelStat'
+          title: Model Stats
+          type: array
+      required:
+      - model_stats
+      title: ModelStatisticsResponse
+      type: object
+    ModelInfo:
+      properties:
+        modelUrl:
+          type: string
+          title: Modelurl
+        shortName:
+          type: string
+          title: Shortname
+      type: object
+      required:
+      - modelUrl
+      - shortName
+      title: ModelInfo
+      description: A model representing the model response.
+    LicenseEndpointModel:
+      properties:
+        name:
+          type: string
+          title: Name
+          description: The name of the license for the NIM container.
+        path:
+          type: string
+          title: Path
+          description: The filepath within the container containing the license content.
+        sha:
+          type: string
+          title: Sha
+          description: A SHA1 hash of the license contents.
+        size:
+          type: integer
+          title: Size
+          description: The number of characters in the license content.
+        url:
+          type: string
+          title: Url
+          description: The url where this license is hosted externally.
+        type:
+          type: string
+          const: file
+          title: Type
+          description: The format of the license content.
+        content:
+          type: string
+          title: Content
+          description: The license text.
+      type: object
+      required:
+      - name
+      - path
+      - sha
+      - size
+      - url
+      - type
+      - content
+      title: LicenseEndpointModel
+      description: A model representing the license response.
+    ManifestEndpointModel:
+      properties:
+        manifest_file:
+          type: string
+          title: Manifest File
+          description: The content of the manifest file describing the required model
+            artifacts.
+        repository_override:
+          type: string
+          title: Repository Override
+          description: Alternate location used to retrieve artifacts from manifest
+            file.
+      type: object
+      required:
+      - manifest_file
+      - repository_override
+      title: ManifestEndpointModel
+      description: A model representing the manifest response.
+    MetadataEndpointModel:
+      properties:
+        assetInfo:
+          items:
+            type: string
+          type: array
+          title: Assetinfo
+          description: A list of required container assets excluding model artifacts
+        licenseInfo:
+          $ref: '#/components/schemas/LicenseEndpointModel'
+          description: The license info.
+        modelInfo:
+          items:
+            $ref: '#/components/schemas/ModelInfo'
+          type: array
+          title: Modelinfo
+          description: A list of models being served by the NIM.
+        repository_override:
+          type: string
+          title: Repository Override
+          description: Alternate location used to retrieve artifacts from manifest
+            file.
+        version:
+          type: string
+          title: Version
+          description: The version of the NIM service.
+      type: object
+      required:
+      - assetInfo
+      - licenseInfo
+      - modelInfo
+      - repository_override
+      - version
+      title: MetadataEndpointModel
+      description: A model representing the metadata response.
+    ModelCard:
+      properties:
+        id:
+          type: string
+          maxLength: 1024
+          minLength: 1
+          pattern: .*
+          title: Id
+          examples:
+          - nvidia/nemotron-page-elements-v3
+        created:
+          type: integer
+          maximum: 4294967295.0
+          minimum: 0.0
+          title: Created
+          default: 0
+        object:
+          type: string
+          maxLength: 5
+          pattern: model
+          title: Object
+          default: model
+        owned_by:
+          type: string
+          maxLength: 1024
+          pattern: .*
+          title: Owned By
+          default: organization-owner
+      type: object
+      required:
+      - id
+      title: ModelCard
+    ModelsResponse:
+      properties:
+        object:
+          type: string
+          maxLength: 4
+          pattern: list
+          title: Object
+          default: list
+        data:
+          items:
+            $ref: '#/components/schemas/ModelCard'
+          type: array
+          maxItems: 4294967295
+          minItems: 0
+          title: Data
+      type: object
+      required:
+      - data
+      title: ModelsResponse
