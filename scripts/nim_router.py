@@ -231,16 +231,29 @@ def normalize_text(text: str) -> str:
 
 def keyword_score(query: str, keywords: list[str]) -> int:
     normalized = normalize_text(query)
+    # Split query into individual tokens for flexible matching
+    query_tokens = set(normalized.split())
     score = 0
     for keyword in keywords:
         token = normalize_text(keyword)
-        if token and token in normalized:
-            score += max(1, len(token.split()))
+        if not token:
+            continue
+        tokens = token.split()
+        if len(tokens) == 1:
+            # Single token: exact substring match (case-insensitive)
+            if tokens[0] in normalized:
+                score += 1
+        else:
+            # Multi-token: check if ALL tokens appear in query (not necessarily consecutively)
+            if all(t in query_tokens for t in tokens):
+                score += len(tokens)
     return score
 
 
 def detect_flags(query: str) -> dict[str, bool]:
     normalized = normalize_text(query)
+    # Also create token set for flexible matching
+    query_tokens = set(normalized.split())
     phrase_sets = {
         "wants_text": [
             "ocr",
@@ -249,7 +262,12 @@ def detect_flags(query: str) -> dict[str, bool]:
             "transcribe image",
             "document text",
             "invoice text",
-            "receipt text"
+            "receipt text",
+            # Single-word triggers for implicit routing
+            "read",
+            "scan",
+            "text",
+            "document",
         ],
         "wants_table": [
             "table",
@@ -257,7 +275,7 @@ def detect_flags(query: str) -> dict[str, bool]:
             "row",
             "column",
             "grid",
-            "table structure"
+            "table structure",
         ],
         "wants_chart": [
             "chart",
@@ -266,7 +284,7 @@ def detect_flags(query: str) -> dict[str, bool]:
             "axis",
             "xlabel",
             "ylabel",
-            "value label"
+            "value label",
         ],
         "wants_layout": [
             "layout",
@@ -275,7 +293,7 @@ def detect_flags(query: str) -> dict[str, bool]:
             "header",
             "footer",
             "title block",
-            "segment page"
+            "segment page",
         ],
         "wants_rank": [
             "rerank",
@@ -283,13 +301,31 @@ def detect_flags(query: str) -> dict[str, bool]:
             "relevance",
             "most relevant",
             "best chunk",
-            "search results"
+            "search results",
+            # Single-word triggers for implicit routing
+            "rank",
+            "relevant",
+            "passage",
+            "chunks",
         ]
     }
-    return {
-        flag: any(phrase in normalized for phrase in phrases)
-        for flag, phrases in phrase_sets.items()
-    }
+    result = {}
+    for flag, phrases in phrase_sets.items():
+        if flag in ("wants_text", "wants_rank"):
+            # For text and rank flags, also check single-word tokens
+            # against single-word phrases in the list
+            single_word_phrases = [p for p in phrases if " " not in p]
+            multi_word_phrases = [p for p in phrases if " " in p]
+            
+            # Check multi-word phrases first (must be consecutive)
+            multi_match = any(phrase in normalized for phrase in multi_word_phrases)
+            # Check single-word phrases (any token match)
+            single_match = any(phrase in query_tokens for phrase in single_word_phrases)
+            
+            result[flag] = multi_match or single_match
+        else:
+            result[flag] = any(phrase in normalized for phrase in phrases)
+    return result
 
 
 def select_workflow(query: str, flags: dict[str, bool], inputs: dict[str, Any]) -> tuple[str | None, list[str], list[str]]:
