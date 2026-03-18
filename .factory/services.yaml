@@ -1,0 +1,14 @@
+commands:
+  install: pip install -e ".[dev]" 2>/dev/null || pip install aiohttp fastapi uvicorn pytest pytest-cov pytest-asyncio httpx
+  test: pytest tests/ -v
+  test-cov: pytest tests/ --cov=nim_router --cov-report=term-missing --cov-fail-under=80
+  typecheck: python3 -m py_compile scripts/nim_router.py nim_router/*.py
+  lint: python3 -m flake8 scripts/ nim_router/ --max-line-length=100 --ignore=E501,W503 2>/dev/null || echo "flake8 not installed, skipping"
+
+services:
+  api-server:
+    start: cd /tmp/nvidia-nim-unified-skill && python3 -m nim_router.server
+    stop: lsof -ti :3100 | xargs kill 2>/dev/null || true
+    healthcheck: curl -sf http://localhost:3100/health || echo "not_running"
+    port: 3100
+    depends_on: []

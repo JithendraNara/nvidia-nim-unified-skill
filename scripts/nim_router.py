@@ -4,17 +4,26 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import base64
 import json
 import mimetypes
 import os
 import re
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
 from typing import Any
+
+
+try:
+    import aiohttp
+    AIOHTTP_AVAILABLE = True
+except ImportError:
+    AIOHTTP_AVAILABLE = False
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -334,6 +343,92 @@ def invoke_request(request_plan: dict[str, Any]) -> dict[str, Any]:
         }
 
 
+async def async_invoke_request(request_plan: dict[str, Any], timeout: int = 120) -> dict[str, Any]:
+    """Invoke a request asynchronously using aiohttp.
+    
+    Args:
+        request_plan: The request plan dict with url, headers, body, method
+        timeout: Request timeout in seconds
+        
+    Returns:
+        Dict with status and response
+    """
+    if not AIOHTTP_AVAILABLE:
+        raise SystemExit(
+            "aiohttp is required for async mode. "
+            "Install it with: pip install aiohttp"
+        )
+    
+    body_bytes = json.dumps(request_plan["body"]).encode("utf-8")
+    headers = request_plan["headers"]
+    
+    timeout_obj = aiohttp.ClientTimeout(total=timeout)
+    
+    try:
+        async with aiohttp.ClientSession(timeout=timeout_obj) as session:
+            async with session.request(
+                method=request_plan["method"],
+                url=request_plan["url"],
+                headers=headers,
+                data=body_bytes
+            ) as response:
+                text = await response.text()
+                try:
+                    parsed: Any = json.loads(text)
+                except json.JSONDecodeError:
+                    parsed = text
+                return {
+                    "status": response.status,
+                    "response": parsed
+                }
+    except aiohttp.ClientError as exc:
+        return {
+            "status": 0,
+            "response": str(exc)
+        }
+
+
+async def async_invoke_batch(
+    requests: list[dict[str, Any]],
+    fail_fast: bool = False
+) -> list[dict[str, Any]]:
+    """Invoke multiple requests concurrently.
+    
+    Args:
+        requests: List of request plans
+        fail_fast: If True, raise exception on first error (not used for individual errors)
+        
+    Returns:
+        List of results in same order as requests
+    """
+    if not requests:
+        return []
+    
+    async def safe_invoke(req: dict[str, Any]) -> dict[str, Any]:
+        try:
+            return await async_invoke_request(req)
+        except Exception as exc:
+            return {
+                "status": 0,
+                "response": f"Async invocation error: {str(exc)}"
+            }
+    
+    tasks = [safe_invoke(req) for req in requests]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    
+    processed_results = []
+    for result in results:
+        if isinstance(result, Exception):
+            processed_results.append({
+                "status": 0,
+                "response": f"Task error: {str(result)}"
+            })
+        else:
+            processed_results.append(result)
+    
+    return processed_results
+
+
 def print_json(value: Any) -> None:
     print(json.dumps(value, indent=2, sort_keys=False))
 
@@ -341,6 +436,13 @@ def print_json(value: Any) -> None:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Unified planner and request builder for NVIDIA NIM tasks.")
     parser.add_argument("--catalog", default=str(CATALOG_PATH), help="Path to nim-capabilities.json")
+    parser.add_argument(
+        "--async",
+        dest="async_mode",
+        action="store_true",
+        default=False,
+        help="Enable async parallel execution for batch image URLs"
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     plan_parser = subparsers.add_parser("plan", help="Plan a capability or workflow from a free-form task.")
@@ -389,11 +491,72 @@ def main() -> None:
         print_json(request_plan)
         return
 
+    # Handle async mode for invoke command
+    if getattr(args, 'async_mode', False) and args.capability != "rerank":
+        image_urls = args.image_url or []
+        if len(image_urls) > 1:
+            # Build separate requests for each image URL
+            requests = []
+            for idx, url in enumerate(image_urls):
+                single_request = build_single_image_request(
+                    request_plan, url, idx
+                )
+                requests.append(single_request)
+            
+            # Invoke all requests concurrently
+            start_time = time.time()
+            results = asyncio.run(async_invoke_batch(requests))
+            elapsed = time.time() - start_time
+            
+            print_json({
+                "request": request_plan,
+                "batch_requests": requests,
+                "results": results,
+                "timing": {
+                    "elapsed_seconds": elapsed,
+                    "mode": "async_parallel"
+                }
+            })
+            return
+
+    # Default sync invocation
     result = invoke_request(request_plan)
     print_json({
         "request": request_plan,
         "result": result
     })
+
+
+def build_single_image_request(
+    base_request: dict[str, Any],
+    image_url: str,
+    index: int
+) -> dict[str, Any]:
+    """Build a request for a single image URL from a batch request.
+    
+    Args:
+        base_request: The original batch request plan
+        image_url: The single image URL to invoke
+        index: Index of this image in the batch
+        
+    Returns:
+        Request plan for a single image
+    """
+    import copy
+    req = copy.deepcopy(base_request)
+    
+    # Find the image in the body input array and keep only this one
+    # The body has format: {"input": [{"type": "image_url", "url": ...}]}
+    # For async, we need to build a separate request for each image
+    body = req["body"]
+    
+    # Check if it's data_url mode (image embedded) or regular URL
+    if image_url.startswith("data:image/"):
+        body["input"] = [{"type": "image_url", "url": image_url}]
+    else:
+        body["input"] = [{"type": "image_url", "url": image_url}]
+    
+    return req
 
 
 if __name__ == "__main__":
