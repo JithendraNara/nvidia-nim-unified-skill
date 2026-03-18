@@ -1,0 +1,68 @@
+[
+  {
+    "assertionId": "VAL-OC-001",
+    "status": "pass",
+    "evidence": [
+      "metadata.openclaw.requires.anyBins contains python: ['python3', 'python']"
+    ],
+    "issues": []
+  },
+  {
+    "assertionId": "VAL-CC-001",
+    "status": "pass",
+    "evidence": [
+      "SKILL.md YAML parses correctly",
+      "Note: metadata field contains nested objects"
+    ],
+    "issues": []
+  },
+  {
+    "assertionId": "VAL-CX-001",
+    "status": "pass",
+    "evidence": [
+      "name field found: nvidia-nim-unified",
+      "description field found: Use when a task needs NVIDIA NIM OCR, page element..."
+    ],
+    "issues": []
+  },
+  {
+    "assertionId": "VAL-OC-002",
+    "status": "pass",
+    "evidence": [
+      "{baseDir}/scripts/ path found in SKILL.md"
+    ],
+    "issues": []
+  },
+  {
+    "assertionId": "VAL-CC-002",
+    "status": "pass",
+    "evidence": [
+      "Slash command invocation documented: /nvidia-nim or /nim"
+    ],
+    "issues": []
+  },
+  {
+    "assertionId": "VAL-CC-003",
+    "status": "pass",
+    "evidence": [
+      "Trigger keywords found: ['extract text', 'OCR', 'image to text', 'pdf text', 'document layout']"
+    ],
+    "issues": []
+  },
+  {
+    "assertionId": "VAL-CX-002",
+    "status": "pass",
+    "evidence": [
+      "Dollar command invocation documented: $nvidia-nim or $nim"
+    ],
+    "issues": []
+  },
+  {
+    "assertionId": "VAL-CX-003",
+    "status": "pass",
+    "evidence": [
+      "Codex trigger keywords found: ['OCR', 'layout detection', 'table extraction', 'chart understanding', 'passage reranking']"
+    ],
+    "issues": []
+  }
+]

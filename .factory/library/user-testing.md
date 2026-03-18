@@ -28,6 +28,32 @@ Rationale:
 - Resource headroom: 8GB RAM, 4 cores usable
 - 2 concurrent allows parallel CLI + API testing
 
+## Flow Validator Guidance: CLI Skill Validation
+
+This is a CLI-first skill. No web UI or browser needed.
+
+### Isolation Rules
+- Tests operate on local files only (SKILL.md, scripts/nim_router.py)
+- No shared state between validators
+- Each assertion group can run independently
+
+### Testing Approach
+1. **YAML Parsing**: Verify SKILL.md parses as valid YAML
+2. **Frontmatter Structure**: Check required fields for each platform
+3. **Script Paths**: Verify {baseDir} is used correctly
+4. **CLI Commands**: Test nim_router.py plan/build-request commands
+
+### Evidence Collection
+- Save parsed YAML output as evidence
+- Save script output as evidence
+- Create screenshots only if visual inspection needed (not applicable here)
+
+### Platform-Specific Notes
+- **OpenClaw**: Tests YAML metadata.openclaw structure
+- **Claude Code**: Tests frontmatter single-line format and invocation docs
+- **Codex**: Tests metadata.name/description fields
+- **Routing**: Tests nim_router.py CLI interface
+
 ## Test Fixtures
 
 - Mock responses in `tests/fixtures/`
