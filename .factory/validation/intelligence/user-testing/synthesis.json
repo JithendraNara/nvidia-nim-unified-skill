@@ -1,0 +1,38 @@
+{
+  "milestone": "intelligence",
+  "round": 1,
+  "status": "fail",
+  "assertionsSummary": {
+    "total": 7,
+    "passed": 3,
+    "failed": 0,
+    "blocked": 4
+  },
+  "passedAssertions": [
+    "VAL-RT-001",
+    "VAL-RT-002",
+    "VAL-RT-005"
+  ],
+  "failedAssertions": [],
+  "blockedAssertions": [
+    {
+      "id": "VAL-RT-003",
+      "blockedBy": "Feature end-to-end-test not yet implemented"
+    },
+    {
+      "id": "VAL-RT-004",
+      "blockedBy": "Feature end-to-end-test not yet implemented"
+    },
+    {
+      "id": "VAL-CA-001",
+      "blockedBy": "Feature end-to-end-test not yet implemented"
+    },
+    {
+      "id": "VAL-CA-002",
+      "blockedBy": "Feature end-to-end-test not yet implemented"
+    }
+  ],
+  "appliedUpdates": [],
+  "previousRound": null,
+  "notes": "Intelligence milestone has routing-enhancement feature completed which fulfills VAL-RT-001, VAL-RT-002, VAL-RT-005. These assertions tested and passed. Remaining assertions (VAL-RT-003, VAL-RT-004, VAL-CA-001, VAL-CA-002) are fulfilled by end-to-end-test feature which is not yet implemented."
+}

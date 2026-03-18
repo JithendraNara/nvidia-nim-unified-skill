@@ -1,0 +1,45 @@
+{
+  "group": "routing-assertions",
+  "milestone": "intelligence",
+  "status": "pass",
+  "assertions": [
+    {
+      "assertionId": "VAL-RT-001",
+      "status": "pass",
+      "evidence": {
+        "command": "python3 scripts/nim_router.py plan --task-query \"extract text\"",
+        "output": "primary_capability: \"ocr\"",
+        "expected": "primary_capability should be \"ocr\"",
+        "actual": "primary_capability is \"ocr\""
+      }
+    },
+    {
+      "assertionId": "VAL-RT-002",
+      "status": "pass",
+      "evidence": {
+        "command": "python3 scripts/nim_router.py plan --task-query \"text and rank passages\"",
+        "output": "workflow_id: \"ocr_then_rerank\"",
+        "expected": "workflow_id should be \"ocr_then_rerank\"",
+        "actual": "workflow_id is \"ocr_then_rerank\""
+      }
+    },
+    {
+      "assertionId": "VAL-RT-005",
+      "status": "pass",
+      "evidence": {
+        "description": "Rate limit handling verified via code inspection",
+        "code_evidence": [
+          "retryable_statuses=(429, 500, 502, 503, 504) - 429 is in retryable list",
+          "RateLimitExceededError returns clear message: f\"Rate limit exceeded for {exc.capability}: {exc}\"",
+          "Exponential backoff (1s, 2s, 4s) for retries on 429 responses",
+          "Circuit breaker opens after 5 consecutive failures"
+        ],
+        "expected": "Error message indicates rate limit, not generic failure",
+        "actual": "Clear error messages for rate limit scenarios"
+      }
+    }
+  ],
+  "toolsUsed": ["python3 CLI", "code inspection"],
+  "frictions": [],
+  "blockers": []
+}
