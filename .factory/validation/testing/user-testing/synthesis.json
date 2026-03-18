@@ -1,0 +1,49 @@
+{
+  "milestone": "testing",
+  "round": 1,
+  "status": "pass",
+  "assertionsSummary": {
+    "total": 15,
+    "passed": 15,
+    "failed": 0,
+    "blocked": 0
+  },
+  "passedAssertions": [
+    "VAL-OC-001",
+    "VAL-OC-002",
+    "VAL-CC-001",
+    "VAL-CC-002",
+    "VAL-CC-003",
+    "VAL-CX-001",
+    "VAL-CX-002",
+    "VAL-CX-003",
+    "VAL-RT-001",
+    "VAL-RT-002",
+    "VAL-RT-003",
+    "VAL-RT-004",
+    "VAL-RT-005",
+    "VAL-CA-001",
+    "VAL-CA-002"
+  ],
+  "failedAssertions": [],
+  "blockedAssertions": [],
+  "appliedUpdates": [],
+  "previousRound": null,
+  "notes": {
+    "testableAssertions": [
+      "VAL-RT-003 (build-request generates valid payload)",
+      "VAL-RT-004 (invoke command succeeds with mocked API)",
+      "VAL-CA-001 (full plan→build→invoke flow)",
+      "VAL-CA-002 (all three platforms produce same routing results)"
+    ],
+    "testSurface": "CLI skill - pytest unit tests with mocked NVIDIA API responses",
+    "evidence": {
+      "allTestsPassed": "66 tests passed in 12.71s",
+      "typecheckPassed": "nim_router.py and nim_router/*.py compile without errors",
+      "planCommandWorks": "python3 scripts/nim_router.py plan --task-query 'extract text' returns correct routing"
+    },
+    "warnings": [
+      "4 RuntimeWarnings about unawaited coroutines in RateLimiter.acquire - non-blocking, tests still pass"
+    ]
+  }
+}
