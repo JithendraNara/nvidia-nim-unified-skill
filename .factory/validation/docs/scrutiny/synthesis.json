@@ -1,0 +1,21 @@
+{
+  "milestone": "docs",
+  "round": 1,
+  "status": "pass",
+  "validatorsRun": {
+    "test": { "passed": true, "command": "pytest tests/ -v", "exitCode": 0 },
+    "typecheck": { "passed": true, "command": "python3 -m py_compile scripts/nim_router.py scripts/nim_router/*.py", "exitCode": 0 },
+    "lint": { "passed": true, "command": "python3 -m flake8 scripts/ scripts/nim_router/ --max-line-length=100 --ignore=E501,W503", "exitCode": 0 }
+  },
+  "reviewsSummary": {
+    "total": 1,
+    "passed": 1,
+    "failed": 0,
+    "failedFeatures": []
+  },
+  "blockingIssues": [],
+  "appliedUpdates": [],
+  "suggestedGuidanceUpdates": [],
+  "rejectedObservations": [],
+  "previousRound": null
+}
