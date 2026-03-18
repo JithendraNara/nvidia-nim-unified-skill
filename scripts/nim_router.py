@@ -558,7 +558,8 @@ def invoke_request(request_plan: dict[str, Any]) -> dict[str, Any]:
     # Apply rate limiting before making the request
     limiter = get_rate_limiter()
     try:
-        wait_time = limiter.acquire(capability)
+        # acquire() is async, so we need to run it in an event loop for sync mode
+        wait_time = asyncio.run(limiter.acquire(capability))
         if wait_time > 0:
             print(f"[rate-limit] Rate limited for {capability}, waiting {wait_time:.2f}s...", file=sys.stderr)
             # For sync mode, we need to block
