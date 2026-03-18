@@ -34,6 +34,18 @@ from nim_router.retry import (
     ExponentialBackoff,
 )
 
+# Import rate limiter from the extended package
+from nim_router.rate_limiter import (
+    RateLimiter,
+    RateLimitConfig,
+    RateLimitExceededError,
+    RateLimitSource,
+    parse_rate_limit_config,
+    get_rate_limiter,
+    initialize_rate_limiter,
+    close_rate_limiter,
+)
+
 
 # Circuit breaker registry - one per capability
 # This persists state across invocations for the same capability
@@ -497,18 +509,39 @@ def invoke_request(request_plan: dict[str, Any]) -> dict[str, Any]:
     invoke_with_retry which handles the retry logic with exponential backoff
     and circuit breaker protection.
     
+    Rate limiting is applied before retry logic using token bucket algorithm.
+    
     Args:
         request_plan: The request plan dict with url, headers, body, method
         
     Returns:
         Dict with status and response
     """
+    capability = request_plan.get("capability", "unknown")
+    
+    # Apply rate limiting before making the request
+    limiter = get_rate_limiter()
+    try:
+        wait_time = limiter.acquire(capability)
+        if wait_time > 0:
+            print(f"[rate-limit] Rate limited for {capability}, waiting {wait_time:.2f}s...", file=sys.stderr)
+            # For sync mode, we need to block
+            import time as time_module
+            time_module.sleep(wait_time)
+    except Exception as e:
+        print(f"[rate-limit] Rate limiter error: {e}", file=sys.stderr)
+    
     try:
         return invoke_with_retry(request_plan)
     except CircuitOpenError as exc:
         return {
             "status": 503,
             "response": f"Circuit breaker open for {exc.capability}: {exc}"
+        }
+    except RateLimitExceededError as exc:
+        return {
+            "status": 429,
+            "response": f"Rate limit exceeded for {exc.capability}: {exc}"
         }
 
 
@@ -532,6 +565,17 @@ async def async_invoke_request(request_plan: dict[str, Any], timeout: int = 120)
         )
     
     capability = request_plan.get("capability", "unknown")
+    
+    # Apply rate limiting before making the request
+    limiter = get_rate_limiter()
+    try:
+        wait_time = await limiter.acquire(capability)
+        if wait_time > 0:
+            print(f"[rate-limit] Rate limited for {capability}, waiting {wait_time:.2f}s...", file=sys.stderr)
+            await asyncio.sleep(wait_time)
+    except Exception as e:
+        print(f"[rate-limit] Rate limiter error: {e}", file=sys.stderr)
+    
     cb = get_circuit_breaker(capability)
     backoff = ExponentialBackoff(_default_retry_config, jitter=0.1)
     
@@ -744,41 +788,52 @@ def main() -> None:
     if args.command == "build-request":
         print_json(request_plan)
         return
+    
+    # Initialize rate limiter from config if present
+    rate_limit_config = None
+    if runtime and "rate_limit" in runtime:
+        rate_limit_config = parse_rate_limit_config(runtime)
+        asyncio.run(initialize_rate_limiter(rate_limit_config))
+    
+    try:
+        # Handle async mode for invoke command
+        if getattr(args, 'async_mode', False) and args.capability != "rerank":
+            image_urls = args.image_url or []
+            if len(image_urls) > 1:
+                # Build separate requests for each image URL
+                requests = []
+                for idx, url in enumerate(image_urls):
+                    single_request = build_single_image_request(
+                        request_plan, url, idx
+                    )
+                    requests.append(single_request)
+                
+                # Invoke all requests concurrently
+                start_time = time.time()
+                results = asyncio.run(async_invoke_batch(requests))
+                elapsed = time.time() - start_time
+                
+                print_json({
+                    "request": request_plan,
+                    "batch_requests": requests,
+                    "results": results,
+                    "timing": {
+                        "elapsed_seconds": elapsed,
+                        "mode": "async_parallel"
+                    }
+                })
+                return
 
-    # Handle async mode for invoke command
-    if getattr(args, 'async_mode', False) and args.capability != "rerank":
-        image_urls = args.image_url or []
-        if len(image_urls) > 1:
-            # Build separate requests for each image URL
-            requests = []
-            for idx, url in enumerate(image_urls):
-                single_request = build_single_image_request(
-                    request_plan, url, idx
-                )
-                requests.append(single_request)
-            
-            # Invoke all requests concurrently
-            start_time = time.time()
-            results = asyncio.run(async_invoke_batch(requests))
-            elapsed = time.time() - start_time
-            
-            print_json({
-                "request": request_plan,
-                "batch_requests": requests,
-                "results": results,
-                "timing": {
-                    "elapsed_seconds": elapsed,
-                    "mode": "async_parallel"
-                }
-            })
-            return
-
-    # Default sync invocation
-    result = invoke_request(request_plan)
-    print_json({
-        "request": request_plan,
-        "result": result
-    })
+        # Default sync invocation
+        result = invoke_request(request_plan)
+        print_json({
+            "request": request_plan,
+            "result": result
+        })
+    finally:
+        # Cleanup rate limiter
+        if rate_limit_config:
+            asyncio.run(close_rate_limiter())
 
 
 def build_single_image_request(

@@ -40,6 +40,15 @@ __all__ = [
     # From this package - cache module
     "Cache",
     "CacheConfig",
+    # From this package - rate limiter module
+    "RateLimiter",
+    "RateLimitConfig",
+    "RateLimitExceededError",
+    "RateLimitSource",
+    "parse_rate_limit_config",
+    "get_rate_limiter",
+    "initialize_rate_limiter",
+    "close_rate_limiter",
 ]
 
 # Copy parent module's exports to this namespace
@@ -52,3 +61,13 @@ globals().update({
 # Import extended features
 from nim_router.retry import RetryConfig, CircuitBreaker, CircuitBreakerConfig, CircuitOpenError, ExponentialBackoff, with_retry
 from nim_router.cache import Cache, CacheConfig
+from nim_router.rate_limiter import (
+    RateLimiter,
+    RateLimitConfig,
+    RateLimitExceededError,
+    RateLimitSource,
+    parse_rate_limit_config,
+    get_rate_limiter,
+    initialize_rate_limiter,
+    close_rate_limiter,
+)

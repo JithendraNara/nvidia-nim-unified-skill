@@ -19,5 +19,14 @@
     "url": "https://ai.api.nvidia.com/v1/retrieval/nvidia/llama-nemotron-rerank-1b-v2/reranking",
     "bearer_env": "NVIDIA_API_KEY",
     "model": "nvidia/llama-nemotron-rerank-1b-v2"
+  },
+  "rate_limit": {
+    "description": "Optional rate limiting configuration. All capabilities share the global limit unless overridden.",
+    "requests_per_minute": 60,
+    "per_capability": {
+      "ocr": 30,
+      "rerank": 120
+    },
+    "redis_url": null
   }
 }
