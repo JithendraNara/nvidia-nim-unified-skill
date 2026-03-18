@@ -60,22 +60,22 @@ class TestRateLimiterConfig:
     def test_default_config(self):
         """Test default rate limit config."""
         config = RateLimitConfig()
-        assert config.requests_per_minute == 60
+        assert config.requests_per_minute == 40
         assert config.per_capability == {}
         assert config.redis_url is None
 
     def test_per_capability_overrides(self):
         """Test per-capability rate limit overrides."""
         config = RateLimitConfig(
-            requests_per_minute=60,
+            requests_per_minute=40,
             per_capability={
-                "ocr": 30,
-                "rerank": 120
+                "ocr": 20,
+                "rerank": 80
             }
         )
-        assert config.requests_per_minute == 60
-        assert config.per_capability["ocr"] == 30
-        assert config.per_capability["rerank"] == 120
+        assert config.requests_per_minute == 40
+        assert config.per_capability["ocr"] == 20
+        assert config.per_capability["rerank"] == 80
 
 
 class TestParseRateLimitConfig:
@@ -84,7 +84,7 @@ class TestParseRateLimitConfig:
     def test_parse_empty_config(self):
         """Test parsing empty config dict."""
         config = parse_rate_limit_config({})
-        assert config.requests_per_minute == 60
+        assert config.requests_per_minute == 40
         assert config.per_capability == {}
 
     def test_parse_full_config(self):
@@ -229,7 +229,7 @@ class TestRateLimiterBehavior:
             
             # Rerank should still have many tokens
             status_rerank = limiter.get_status("rerank")
-            # Used 1 token from rerank
+            # Used 1 token from rerank (120 rpm in this test)
             assert 119 < status_rerank["available_tokens"] <= 120
         finally:
             await limiter.close()

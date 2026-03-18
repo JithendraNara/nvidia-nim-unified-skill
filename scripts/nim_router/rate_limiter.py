@@ -484,7 +484,7 @@ def parse_rate_limit_config(config_dict: dict[str, Any]) -> RateLimitConfig:
     
     requests_per_minute = rate_limit_config.get(
         "requests_per_minute",
-        60  # Default to 60 req/min
+        40  # Default to 40 req/min (matches NVIDIA API limit)
     )
     
     per_capability = rate_limit_config.get("per_capability", {})
