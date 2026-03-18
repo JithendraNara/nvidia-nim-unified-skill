@@ -18,12 +18,190 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-
 try:
     import aiohttp
     AIOHTTP_AVAILABLE = True
 except ImportError:
     AIOHTTP_AVAILABLE = False
+
+# Import retry and circuit breaker from the extended package
+from nim_router.retry import (
+    RetryConfig,
+    CircuitBreaker,
+    CircuitBreakerConfig,
+    CircuitOpenError,
+    CircuitState,
+    ExponentialBackoff,
+)
+
+
+# Circuit breaker registry - one per capability
+# This persists state across invocations for the same capability
+_circuit_breakers: dict[str, CircuitBreaker] = {}
+_circuit_breakers_lock = asyncio.Lock() if AIOHTTP_AVAILABLE else None
+
+# Default retry configuration for transient errors
+_default_retry_config = RetryConfig(
+    max_attempts=3,
+    base_delay=1.0,
+    exponential_base=2.0,
+    max_delay=30.0,
+    retryable_statuses=(429, 500, 502, 503, 504)
+)
+
+# Default circuit breaker configuration
+_default_circuit_breaker_config = CircuitBreakerConfig(
+    failure_threshold=5,  # Open after 5 consecutive failures
+    recovery_timeout=60.0,  # Wait 60 seconds before trying again
+    success_threshold=2  # Close after 2 successes in half-open
+)
+
+
+def get_circuit_breaker(capability: str) -> CircuitBreaker:
+    """Get or create a circuit breaker for the given capability.
+    
+    Circuit breakers are shared across invocations to maintain state.
+    """
+    if capability not in _circuit_breakers:
+        _circuit_breakers[capability] = CircuitBreaker(
+            capability,
+            _default_circuit_breaker_config
+        )
+    return _circuit_breakers[capability]
+
+
+def invoke_with_retry(request_plan: dict[str, Any]) -> dict[str, Any]:
+    """Invoke a request with retry and circuit breaker protection.
+    
+    Uses exponential backoff (1s, 2s, 4s) for retries on transient errors.
+    Circuit breaker opens after 5 consecutive failures.
+    
+    Args:
+        request_plan: The request plan dict with url, headers, body, method
+        
+    Returns:
+        Dict with status and response
+        
+    Raises:
+        CircuitOpenError: If circuit breaker is open
+    """
+    capability = request_plan.get("capability", "unknown")
+    cb = get_circuit_breaker(capability)
+    backoff = ExponentialBackoff(_default_retry_config, jitter=0.1)
+    
+    last_error = None
+    
+    for attempt in range(1, _default_retry_config.max_attempts + 1):
+        # Check circuit breaker before attempting
+        if not cb.can_execute():
+            status = cb.get_status()
+            raise CircuitOpenError(
+                capability,
+                retry_after=_default_circuit_breaker_config.recovery_timeout
+            )
+        
+        try:
+            result = _sync_invoke_request(request_plan)
+            
+            # Check if we got a retryable error
+            if result.get("status") in _default_retry_config.retryable_statuses:
+                last_error = Exception(f"HTTP {result.get('status')}: {result.get('response')}")
+                
+                # Record failure in circuit breaker
+                if AIOHTTP_AVAILABLE:
+                    asyncio.run(cb.record_failure())
+                else:
+                    # Synchronous fallback
+                    import asyncio as async_lib
+                    async_lib.run(cb.record_failure())
+                
+                # Don't wait after last attempt
+                if attempt < _default_retry_config.max_attempts:
+                    delay = next(iter(backoff))
+                    print(f"[retry] Attempt {attempt} failed with status {result.get('status')}, "
+                          f"retrying in {delay:.1f}s...", file=sys.stderr)
+                    time.sleep(delay)
+                    continue
+            
+            # Success or non-retryable error - record success if we had failures
+            if attempt > 1:  # We had some retries
+                if AIOHTTP_AVAILABLE:
+                    asyncio.run(cb.record_success())
+                else:
+                    import asyncio as async_lib
+                    async_lib.run(cb.record_success())
+            
+            return result
+            
+        except urllib.error.HTTPError as exc:
+            last_error = exc
+            status_code = exc.code
+            
+            if status_code in _default_retry_config.retryable_statuses:
+                # Record failure
+                if AIOHTTP_AVAILABLE:
+                    asyncio.run(cb.record_failure())
+                else:
+                    import asyncio as async_lib
+                    async_lib.run(cb.record_failure())
+                
+                if attempt < _default_retry_config.max_attempts:
+                    delay = next(iter(backoff))
+                    print(f"[retry] Attempt {attempt} failed with HTTP {status_code}, "
+                          f"retrying in {delay:.1f}s...", file=sys.stderr)
+                    time.sleep(delay)
+                    continue
+            else:
+                # Non-retryable error
+                return {
+                    "status": status_code,
+                    "response": str(exc)
+                }
+    
+    # All retries exhausted
+    return {
+        "status": last_error.code if hasattr(last_error, 'code') else 0,
+        "response": f"All retries exhausted: {last_error}"
+    }
+
+
+def _sync_invoke_request(request_plan: dict[str, Any]) -> dict[str, Any]:
+    """Internal synchronous HTTP request without retry logic.
+    
+    Args:
+        request_plan: The request plan dict
+        
+    Returns:
+        Dict with status and response
+    """
+    body_bytes = json.dumps(request_plan["body"]).encode("utf-8")
+    request = urllib.request.Request(
+        request_plan["url"],
+        data=body_bytes,
+        method=request_plan["method"],
+        headers=request_plan["headers"]
+    )
+    try:
+        with urllib.request.urlopen(request) as response:
+            text = response.read().decode("utf-8")
+            try:
+                parsed: Any = json.loads(text)
+            except json.JSONDecodeError:
+                parsed = text
+            return {
+                "status": response.status,
+                "response": parsed
+            }
+    except urllib.error.HTTPError as exc:
+        text = exc.read().decode("utf-8")
+        try:
+            parsed = json.loads(text)
+        except json.JSONDecodeError:
+            parsed = text
+        return {
+            "status": exc.code,
+            "response": parsed
+        }
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -313,38 +491,32 @@ def build_request(capability_name: str, args: argparse.Namespace, catalog: dict[
 
 
 def invoke_request(request_plan: dict[str, Any]) -> dict[str, Any]:
-    body_bytes = json.dumps(request_plan["body"]).encode("utf-8")
-    request = urllib.request.Request(
-        request_plan["url"],
-        data=body_bytes,
-        method=request_plan["method"],
-        headers=request_plan["headers"]
-    )
+    """Invoke a request with retry and circuit breaker protection.
+    
+    This is the main entry point for sync invocation. It delegates to
+    invoke_with_retry which handles the retry logic with exponential backoff
+    and circuit breaker protection.
+    
+    Args:
+        request_plan: The request plan dict with url, headers, body, method
+        
+    Returns:
+        Dict with status and response
+    """
     try:
-        with urllib.request.urlopen(request) as response:
-            text = response.read().decode("utf-8")
-            try:
-                parsed: Any = json.loads(text)
-            except json.JSONDecodeError:
-                parsed = text
-            return {
-                "status": response.status,
-                "response": parsed
-            }
-    except urllib.error.HTTPError as exc:
-        text = exc.read().decode("utf-8")
-        try:
-            parsed = json.loads(text)
-        except json.JSONDecodeError:
-            parsed = text
+        return invoke_with_retry(request_plan)
+    except CircuitOpenError as exc:
         return {
-            "status": exc.code,
-            "response": parsed
+            "status": 503,
+            "response": f"Circuit breaker open for {exc.capability}: {exc}"
         }
 
 
 async def async_invoke_request(request_plan: dict[str, Any], timeout: int = 120) -> dict[str, Any]:
-    """Invoke a request asynchronously using aiohttp.
+    """Invoke a request asynchronously with retry and circuit breaker.
+    
+    Uses exponential backoff (1s, 2s, 4s) for retries on transient errors.
+    Circuit breaker opens after 5 consecutive failures per capability.
     
     Args:
         request_plan: The request plan dict with url, headers, body, method
@@ -359,6 +531,80 @@ async def async_invoke_request(request_plan: dict[str, Any], timeout: int = 120)
             "Install it with: pip install aiohttp"
         )
     
+    capability = request_plan.get("capability", "unknown")
+    cb = get_circuit_breaker(capability)
+    backoff = ExponentialBackoff(_default_retry_config, jitter=0.1)
+    
+    last_error = None
+    
+    for attempt in range(1, _default_retry_config.max_attempts + 1):
+        # Check circuit breaker before attempting
+        if not cb.can_execute():
+            status = cb.get_status()
+            raise CircuitOpenError(
+                capability,
+                retry_after=_default_circuit_breaker_config.recovery_timeout
+            )
+        
+        try:
+            result = await _async_invoke_single(request_plan, timeout)
+            
+            # Check if we got a retryable error
+            if result.get("status") in _default_retry_config.retryable_statuses:
+                last_error = Exception(f"HTTP {result.get('status')}: {result.get('response')}")
+                
+                # Record failure in circuit breaker
+                await cb.record_failure()
+                
+                # Don't wait after last attempt
+                if attempt < _default_retry_config.max_attempts:
+                    delay = next(iter(backoff))
+                    print(f"[retry] Attempt {attempt} failed with status {result.get('status')}, "
+                          f"retrying in {delay:.1f}s...", file=sys.stderr)
+                    await asyncio.sleep(delay)
+                    continue
+            
+            # Success or non-retryable error - record success if we had retries
+            if attempt > 1:  # We had some retries
+                await cb.record_success()
+            
+            return result
+            
+        except aiohttp.ClientError as exc:
+            last_error = exc
+            
+            # Record failure
+            await cb.record_failure()
+            
+            if attempt < _default_retry_config.max_attempts:
+                delay = next(iter(backoff))
+                print(f"[retry] Attempt {attempt} failed with error {type(exc).__name__}, "
+                      f"retrying in {delay:.1f}s...", file=sys.stderr)
+                await asyncio.sleep(delay)
+                continue
+            else:
+                return {
+                    "status": 0,
+                    "response": f"All retries exhausted: {last_error}"
+                }
+    
+    # All retries exhausted
+    return {
+        "status": 0,
+        "response": f"All retries exhausted: {last_error}"
+    }
+
+
+async def _async_invoke_single(request_plan: dict[str, Any], timeout: int = 120) -> dict[str, Any]:
+    """Internal async HTTP request without retry logic.
+    
+    Args:
+        request_plan: The request plan dict
+        timeout: Request timeout in seconds
+        
+    Returns:
+        Dict with status and response
+    """
     body_bytes = json.dumps(request_plan["body"]).encode("utf-8")
     headers = request_plan["headers"]
     
@@ -392,7 +638,10 @@ async def async_invoke_batch(
     requests: list[dict[str, Any]],
     fail_fast: bool = False
 ) -> list[dict[str, Any]]:
-    """Invoke multiple requests concurrently.
+    """Invoke multiple requests concurrently with retry and circuit breaker.
+    
+    Each request is protected by its capability's circuit breaker.
+    Uses exponential backoff for retries on transient errors.
     
     Args:
         requests: List of request plans
@@ -407,6 +656,11 @@ async def async_invoke_batch(
     async def safe_invoke(req: dict[str, Any]) -> dict[str, Any]:
         try:
             return await async_invoke_request(req)
+        except CircuitOpenError as exc:
+            return {
+                "status": 503,
+                "response": f"Circuit breaker open for {exc.capability}: {exc}"
+            }
         except Exception as exc:
             return {
                 "status": 0,
