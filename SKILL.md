@@ -1,7 +1,8 @@
 ---
 name: nvidia-nim-unified
 description: Use when a task needs NVIDIA NIM OCR, page elements, table structure, graphic element detection, or passage reranking through one shared routing layer. Selects the right capability or multi-step workflow from a free-form query, prepares requests, and can invoke the configured endpoint.
-metadata: {"openclaw":{"emoji":"🟩","homepage":"https://github.com/JithendraNara/nvidia-nim-unified-skill","requires":{"anyBins":["python3","python"]}},"short-description":"Unified NVIDIA NIM router for OCR, layout, and reranking"}
+short-description: Unified NVIDIA NIM router for OCR, layout, and reranking
+metadata: {openclaw: {emoji: "🟩", homepage: "https://github.com/JithendraNara/nvidia-nim-unified-skill", requires: {anyBins: [python3, python]}}}
 ---
 
 # NVIDIA NIM Unified
