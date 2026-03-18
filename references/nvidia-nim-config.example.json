@@ -22,10 +22,10 @@
   },
   "rate_limit": {
     "description": "Optional rate limiting configuration. All capabilities share the global limit unless overridden.",
-    "requests_per_minute": 60,
+    "requests_per_minute": 40,
     "per_capability": {
-      "ocr": 30,
-      "rerank": 120
+      "ocr": 20,
+      "rerank": 80
     },
     "redis_url": null
   }

@@ -39,7 +39,7 @@ class RateLimitSource(Enum):
 class RateLimitConfig:
     """Configuration for rate limiter behavior."""
     # Default requests per minute for all capabilities
-    requests_per_minute: int = 60
+    requests_per_minute: int = 40
     # Per-capability overrides (capability_name -> requests_per_minute)
     per_capability: dict[str, int] = field(default_factory=dict)
     # Enable Redis backend for distributed rate limiting
