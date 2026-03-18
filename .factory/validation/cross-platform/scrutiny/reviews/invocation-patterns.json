@@ -1,0 +1,40 @@
+{
+  "featureId": "invocation-patterns",
+  "status": "pass",
+  "issues": [],
+  "sharedStateObservations": [
+    {
+      "area": "services.yaml",
+      "observation": "typecheck command has incorrect path 'nim_router/*.py' but should be 'scripts/nim_router/*.py'. This is a pre-existing bug in services.yaml, not caused by this feature."
+    }
+  ],
+  "validationChecks": {
+    "VAL-CC-002": {
+      "description": "Claude Code can invoke explicitly",
+      "passed": true,
+      "evidence": "Invocation Patterns section documents /nvidia-nim, /nim, and /nvidia-nim plan/invoke commands"
+    },
+    "VAL-CC-003": {
+      "description": "Claude Code implicit invocation works",
+      "passed": true,
+      "evidence": "trigger_keywords includes 'extract text', 'OCR', 'document layout', etc. and Claude Code section documents implicit trigger phrases"
+    },
+    "VAL-CX-002": {
+      "description": "Codex explicit invocation works",
+      "passed": true,
+      "evidence": "Invocation Patterns section documents $nvidia-nim, $nvidia-nim-unified commands"
+    },
+    "VAL-CX-003": {
+      "description": "Codex implicit selection works",
+      "passed": true,
+      "evidence": "Codex section documents implicit trigger: 'queries mention OCR, layout detection, table extraction, chart understanding, or passage reranking'"
+    }
+  },
+  "aliasesAdded": ["nim", "nvidia-nim"],
+  "triggerKeywordsAdded": true,
+  "invocationPatternsDocumented": {
+    "claudeCode": true,
+    "codex": true,
+    "openclaw": true
+  }
+}

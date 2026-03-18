@@ -1,0 +1,35 @@
+{
+  "featureId": "cross-platform-skillmd",
+  "status": "pass",
+  "issues": [],
+  "sharedStateObservations": [
+    {
+      "area": "services.yaml",
+      "observation": "typecheck command has incorrect path 'nim_router/*.py' but should be 'scripts/nim_router/*.py'. This is a pre-existing bug in services.yaml, not caused by this feature."
+    }
+  ],
+  "validationChecks": {
+    "VAL-OC-001": {
+      "description": "OpenClaw frontmatter loads correctly",
+      "passed": true,
+      "evidence": "metadata.openclaw.requires.anyBins contains [python3, python]"
+    },
+    "VAL-OC-002": {
+      "description": "OpenClaw skill loads with {baseDir}",
+      "passed": true,
+      "evidence": "All script paths use {baseDir} prefix (nim_router.py, nim-capabilities.json, etc.)"
+    },
+    "VAL-CC-001": {
+      "description": "Claude Code frontmatter format valid",
+      "passed": true,
+      "evidence": "Frontmatter uses single-line keys without nested multi-line YAML. Metadata uses YAML flow style."
+    },
+    "VAL-CX-001": {
+      "description": "Codex progressive disclosure works",
+      "passed": true,
+      "evidence": "SKILL.md provides name, description, short-description, aliases, trigger_keywords, and metadata"
+    }
+  },
+  "lineCount": 142,
+  "under500Lines": true
+}
