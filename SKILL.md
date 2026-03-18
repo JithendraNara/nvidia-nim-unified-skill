@@ -2,6 +2,8 @@
 name: nvidia-nim-unified
 description: Use when a task needs NVIDIA NIM OCR, page elements, table structure, graphic element detection, or passage reranking through one shared routing layer. Selects the right capability or multi-step workflow from a free-form query, prepares requests, and can invoke the configured endpoint.
 short-description: Unified NVIDIA NIM router for OCR, layout, and reranking
+aliases: [nim, nvidia-nim]
+trigger_keywords: [extract text, OCR, document layout, page elements, table structure, table cells, chart labels, rerank passages, detect layout, image to text, pdf text extraction, passage ranking, search relevance]
 metadata: {openclaw: {emoji: "🟩", homepage: "https://github.com/JithendraNara/nvidia-nim-unified-skill", requires: {anyBins: [python3, python]}}}
 ---
 
@@ -16,6 +18,32 @@ This skill wraps five NVIDIA NIM capabilities behind one routing layer:
 - `rerank`
 
 Do not pretend these are one physical OpenAPI endpoint. They are different capabilities with different request shapes. Treat this skill as the abstraction layer that hides those differences from the agent.
+
+## Invocation Patterns
+
+### Claude Code
+Explicit invocation:
+```
+/nvidia-nim
+/nvidia-nim plan --task-query "extract text from invoice"
+/nim invoke --capability ocr --image-url https://example.com/doc.png
+```
+
+Implicit trigger: Claude Code activates this skill when descriptions contain keywords like "extract text", "OCR", "image to text", "pdf text", "document layout", "table structure", "rerank", "passage ranking", "detect chart", "page elements".
+
+### Codex (OpenAI)
+Explicit invocation:
+```
+$nvidia-nim
+$nvidia-nim-unified
+$nvidia-nim plan --task-query "extract text from invoice"
+$nvidia-nim build-request --capability ocr --image-url https://example.com/doc.png
+```
+
+Implicit trigger: Codex activates this skill when queries mention OCR, layout detection, table extraction, chart understanding, or passage reranking.
+
+### OpenClaw
+The skill loads automatically when the task description matches trigger keywords. For explicit invocation, reference the skill by name `nvidia-nim-unified` or `nim`.
 
 ## Use This Skill When
 
