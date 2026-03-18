@@ -134,6 +134,196 @@ Default endpoint env names:
 
 These may be overridden in the shared config JSON.
 
+## Examples
+
+### Quick Start
+
+Plan a task from a free-form query:
+
+```bash
+python3 {baseDir}/scripts/nim_router.py plan --task-query "extract text from invoice"
+```
+
+Build and invoke in one step (with API key configured):
+
+```bash
+python3 {baseDir}/scripts/nim_router.py invoke \
+  --capability ocr \
+  --image-url "https://example.com/invoice.png"
+```
+
+### Capability Examples
+
+#### OCR (Text Extraction)
+
+Extract text from an image:
+
+```bash
+python3 {baseDir}/scripts/nim_router.py invoke \
+  --capability ocr \
+  --image-url "https://example.com/receipt.jpg"
+```
+
+Build request without invoking:
+
+```bash
+python3 {baseDir}/scripts/nim_router.py build-request \
+  --capability ocr \
+  --image-url "https://example.com/document.png"
+```
+
+#### Page Elements (Layout Detection)
+
+Detect page layout, headers, paragraphs, sections:
+
+```bash
+python3 {baseDir}/scripts/nim_router.py invoke \
+  --capability page_elements \
+  --image-url "https://example.com/page.png"
+```
+
+#### Table Structure
+
+Detect table cells, rows, columns, headers:
+
+```bash
+python3 {baseDir}/scripts/nim_router.py invoke \
+  --capability table_structure \
+  --image-url "https://example.com/spreadsheet.png"
+```
+
+#### Graphic Elements (Chart Detection)
+
+Detect chart labels, axes, legends, titles:
+
+```bash
+python3 {baseDir}/scripts/nim_router.py invoke \
+  --capability graphic_elements \
+  --image-url "https://example.com/chart.png"
+```
+
+#### Rerank (Passage Ranking)
+
+Rank passages by relevance to a query:
+
+```bash
+python3 {baseDir}/scripts/nim_router.py invoke \
+  --capability rerank \
+  --query-text "Which GPU has the fastest memory?" \
+  --passage "A100: 2 TB/s memory bandwidth" \
+  --passage "H100: 3.35 TB/s memory bandwidth" \
+  --passage "RTX 4090: 1 TB/s memory bandwidth"
+```
+
+### Workflow Examples
+
+#### OCR + Rerank (ocr_then_rerank)
+
+Use when task combines text extraction and relevance ranking:
+
+```bash
+# Step 1: Plan the workflow
+python3 {baseDir}/scripts/nim_router.py plan \
+  --task-query "extract text from image and rank passages by relevance" \
+  --image-url "https://example.com/doc.png" \
+  --query-text "H100 specifications"
+
+# Step 2: Run OCR first
+python3 {baseDir}/scripts/nim_router.py invoke \
+  --capability ocr \
+  --image-url "https://example.com/doc.png"
+
+# Step 3: Use extracted text as passages for reranking
+python3 {baseDir}/scripts/nim_router.py invoke \
+  --capability rerank \
+  --query-text "H100 specifications" \
+  --passage "First passage from OCR result..." \
+  --passage "Second passage from OCR result..."
+```
+
+#### Layout-Aware Table Extraction (page_elements → table_structure → ocr)
+
+Use when extracting text while preserving table structure:
+
+```bash
+# Step 1: Detect page layout
+python3 {baseDir}/scripts/nim_router.py invoke \
+  --capability page_elements \
+  --image-url "https://example.com/report.png"
+
+# Step 2: Detect table structure
+python3 {baseDir}/scripts/nim_router.py invoke \
+  --capability table_structure \
+  --image-url "https://example.com/report.png"
+
+# Step 3: Extract text with layout context
+python3 {baseDir}/scripts/nim_router.py invoke \
+  --capability ocr \
+  --image-url "https://example.com/report.png"
+```
+
+#### Chart-Aware Extraction (page_elements → graphic_elements → ocr)
+
+Use when understanding charts while reading surrounding content:
+
+```bash
+# Step 1: Detect page layout
+python3 {baseDir}/scripts/nim_router.py invoke \
+  --capability page_elements \
+  --image-url "https://example.com/dashboard.png"
+
+# Step 2: Detect chart elements
+python3 {baseDir}/scripts/nim_router.py invoke \
+  --capability graphic_elements \
+  --image-url "https://example.com/dashboard.png"
+
+# Step 3: Extract text with chart context
+python3 {baseDir}/scripts/nim_router.py invoke \
+  --capability ocr \
+  --image-url "https://example.com/dashboard.png"
+```
+
+### Platform-Specific Invocation
+
+#### Claude Code
+
+Explicit invocation:
+```
+/nvidia-nim
+/nvidia-nim invoke --capability ocr --image-url https://example.com/doc.png
+```
+
+Implicit trigger: Skill activates when descriptions contain "extract text", "OCR", "document layout", "table structure", "rerank", "chart labels".
+
+#### Codex (OpenAI)
+
+Explicit invocation:
+```
+$nvidia-nim
+$nvidia-nim invoke --capability ocr --image-url https://example.com/doc.png
+```
+
+Implicit trigger: Skill activates for queries mentioning OCR, layout detection, table extraction, chart understanding, or passage reranking.
+
+#### OpenClaw
+
+The skill loads automatically when task description matches trigger keywords. For explicit invocation, reference `nvidia-nim-unified` or `nim`.
+
+### Image Source Formats
+
+The router accepts three image source formats and converts to base64 data URLs:
+
+```bash
+# HTTPS URL (auto-downloaded and converted)
+--image-url "https://example.com/image.png"
+
+# Local file path (read and converted)
+--image-url "/path/to/local/image.jpg"
+
+# Data URL (passed through directly)
+--image-url "data:image/png;base64,iVBORw0KG..."
+```
+
 ## Constraints
 
 - The router is deterministic and rule-based. If the task is ambiguous, inspect the returned rationale instead of blindly invoking.
