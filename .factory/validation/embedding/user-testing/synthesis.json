@@ -1,6 +1,6 @@
 {
   "milestone": "embedding",
-  "round": 1,
+  "round": 2,
   "status": "fail",
   "assertionsSummary": {
     "total": 3,
@@ -14,5 +14,5 @@
     { "id": "VAL-EMBED-003", "blockedBy": "NVIDIA_API_KEY environment variable not set" }
   ],
   "appliedUpdates": [],
-  "previousRound": null
+  "previousRound": ".factory/validation/embedding/user-testing/synthesis.json"
 }

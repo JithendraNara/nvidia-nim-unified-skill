@@ -1,0 +1,37 @@
+{
+  "groupId": "VAL-EMBED-003",
+  "testedAt": "2026-03-18T12:00:00-07:00",
+  "isolation": {
+    "workingDirectory": "/private/tmp/nvidia-nim-unified-skill",
+    "cliTool": "python3 scripts/nim_router.py",
+    "environment": "local"
+  },
+  "toolsUsed": ["bash", "python3"],
+  "assertions": [
+    {
+      "id": "VAL-EMBED-003",
+      "title": "Embed endpoint accessible",
+      "status": "blocked",
+      "steps": [
+        { "action": "Check NVIDIA_API_KEY environment variable", "expected": "API key is set", "observed": "NVIDIA_API_KEY is not set (empty)" },
+        { "action": "Run: python3 scripts/nim_router.py invoke --capability embed --text \"sample text\"", "expected": "Response contains embedding array/vector", "observed": "Command executed but received 404 response - API authentication failed due to missing API key" }
+      ],
+      "evidence": {
+        "commandOutput": "embedding/VAL-EMBED-003/VAL-EMBED-003-command-output.json"
+      },
+      "issues": {
+        "reason": "NVIDIA_API_KEY not available in environment",
+        "detail": "The NVIDIA_API_KEY environment variable is not set. The command executed and made a request to https://ai.api.nvidia.com/v1/embeddings but received a 404 response, likely because the API gateway rejected the unauthenticated request."
+      }
+    }
+  ],
+  "frictions": [],
+  "blockers": [
+    {
+      "description": "NVIDIA_API_KEY not available in environment - cannot authenticate with NVIDIA NIM API",
+      "affectedAssertions": ["VAL-EMBED-003"],
+      "quickFixAttempted": "N/A - environment limitation, not a code defect"
+    }
+  ],
+  "summary": "Tested VAL-EMBED-003: assertion BLOCKED - NVIDIA_API_KEY is not set in the environment, which is required to authenticate with the NVIDIA NIM API. The command executed and constructed a valid API request but received a 404 response due to missing authentication."
+}
