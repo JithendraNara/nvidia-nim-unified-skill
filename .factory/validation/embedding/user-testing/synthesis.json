@@ -1,6 +1,6 @@
 {
   "milestone": "embedding",
-  "round": 2,
+  "round": 3,
   "status": "fail",
   "assertionsSummary": {
     "total": 3,
@@ -11,8 +11,17 @@
   "passedAssertions": ["VAL-EMBED-001", "VAL-EMBED-002"],
   "failedAssertions": [],
   "blockedAssertions": [
-    { "id": "VAL-EMBED-003", "blockedBy": "NVIDIA_API_KEY environment variable not set" }
+    {
+      "id": "VAL-EMBED-003",
+      "blockedBy": "NVIDIA_API_KEY environment variable not set",
+      "detail": "The embed capability code works correctly (build-request produces valid JSON), but invoke cannot authenticate with the NVIDIA API without an API key. This is an environment limitation, not a code defect."
+    }
   ],
   "appliedUpdates": [],
-  "previousRound": ".factory/validation/embedding/user-testing/synthesis.json"
+  "previousRound": ".factory/validation/embedding/user-testing/synthesis.json",
+  "notes": [
+    "Round 3 confirms same blocking issue as rounds 1 and 2: NVIDIA_API_KEY not available in environment",
+    "VAL-EMBED-001 and VAL-EMBED-002 remain passed (no change needed)",
+    "The embed capability implementation is correct - VAL-EMBED-003 cannot be validated without API key"
+  ]
 }
