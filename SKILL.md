@@ -270,12 +270,21 @@ python3 {baseDir}/scripts/nim_router.py pipeline \
 python3 {baseDir}/scripts/nim_router.py pipeline \
   --input "/path/to/documents/" \
   --format json-ld
+
+# Full RAG pipeline with embeddings (requires NVIDIA_API_KEY)
+python3 {baseDir}/scripts/nim_router.py pipeline \
+  --input "document.pdf" \
+  --embed \
+  --format json-ld
 ```
 
 **Pipeline Output Formats:**
 - `json-ld`: Schema.org ItemList format with chunk metadata (source, page_number, section_header, token_count)
 - `markdown`: Human-readable format with chunk headers and metadata
 - `text`: Plain text suitable for direct embedding pipelines
+
+**--embed Flag:**
+When `--embed` is specified, each chunk is automatically vectorized using NVIDIA's `nv-embed-v1` model (4096 dimensions). The embeddings are attached to each chunk in the output, ready for vector storage.
 
 ### Workflow Examples
 

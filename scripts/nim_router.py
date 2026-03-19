@@ -840,6 +840,77 @@ async def async_invoke_batch(
     return processed_results
 
 
+def embed_chunks(chunks: list[dict[str, Any]], catalog: dict[str, Any]) -> list[dict[str, Any]]:
+    """Generate embeddings for text chunks using nv-embed-v1.
+    
+    Args:
+        chunks: List of chunk dicts with 'text' field
+        catalog: Capabilities catalog
+        
+    Returns:
+        List of chunks with 'embedding' field added (4096-dim vector)
+    """
+    if not chunks:
+        return chunks
+    
+    # Extract text from chunks
+    texts = [chunk.get("text", "") for chunk in chunks]
+    texts = [t for t in texts if t]  # Filter empty strings
+    
+    if not texts:
+        return chunks
+    
+    print(f"[pipeline] Generating embeddings for {len(texts)} chunks...", file=sys.stderr)
+    
+    # Build embed request
+    class EmbedArgs:
+        def __init__(self):
+            self.text = texts
+            self.model = None
+            self.input_type = "passage"
+            self.truncate = "END"
+    
+    embed_args = EmbedArgs()
+    runtime = load_runtime_config(None)
+    
+    try:
+        request_plan = build_request("embed", embed_args, catalog, runtime)
+    except SystemExit as exc:
+        print(f"[pipeline] Warning: Failed to build embed request: {exc}", file=sys.stderr)
+        return chunks
+    
+    # Invoke embed request
+    result = invoke_request(request_plan)
+    
+    if result.get("status") != 200:
+        print(f"[pipeline] Warning: Embedding failed with status {result.get('status')}: {result.get('response')}", file=sys.stderr)
+        return chunks
+    
+    # Extract embeddings from response
+    embed_response = result.get("response", {})
+    embeddings = []
+    
+    if isinstance(embed_response, dict) and "data" in embed_response:
+        for item in embed_response["data"]:
+            if isinstance(item, dict) and "embedding" in item:
+                embeddings.append(item["embedding"])
+    
+    if len(embeddings) != len(texts):
+        print(f"[pipeline] Warning: Expected {len(texts)} embeddings, got {len(embeddings)}", file=sys.stderr)
+        return chunks
+    
+    # Attach embeddings to chunks
+    emb_idx = 0
+    for chunk in chunks:
+        if chunk.get("text"):
+            chunk["embedding"] = embeddings[emb_idx]
+            emb_idx += 1
+    
+    print(f"[pipeline] Generated {emb_idx} embeddings ({len(embeddings[0]) if embeddings else 0} dims)", file=sys.stderr)
+    
+    return chunks
+
+
 def chunk_text(text: str, chunk_size: int = 512, overlap: int = 64) -> list[dict[str, Any]]:
     """Split text into chunks with configurable size and overlap.
     
@@ -947,7 +1018,7 @@ def format_chunks_text(chunks: list[dict[str, Any]], source: str) -> str:
     return "\n".join(lines).strip()
 
 
-def process_single_file(file_path: str, chunk_size: int, overlap: int, format_type: str, catalog: dict[str, Any]) -> dict[str, Any]:
+def process_single_file(file_path: str, chunk_size: int, overlap: int, format_type: str, catalog: dict[str, Any], do_embed: bool = False) -> dict[str, Any]:
     """Process a single file through the pipeline.
     
     Args:
@@ -956,6 +1027,7 @@ def process_single_file(file_path: str, chunk_size: int, overlap: int, format_ty
         overlap: Overlap between chunks in tokens
         format_type: Output format (json-ld, markdown, text)
         catalog: Capabilities catalog
+        do_embed: If True, generate embeddings for each chunk
         
     Returns:
         Dict with source, status, and chunks/output
@@ -1060,6 +1132,10 @@ def process_single_file(file_path: str, chunk_size: int, overlap: int, format_ty
         page_number=1
     )
     
+    # Optionally generate embeddings for chunks
+    if do_embed and chunks:
+        chunks = embed_chunks(chunks, catalog)
+    
     # Format output based on requested format
     if format_type == "json-ld":
         output = format_semantic_chunks_jsonld(chunks, source)
@@ -1071,7 +1147,8 @@ def process_single_file(file_path: str, chunk_size: int, overlap: int, format_ty
     return {
         "source": source,
         "status": "success",
-        "result": output
+        "result": output,
+        "has_embeddings": do_embed and len(chunks) > 0 and "embedding" in chunks[0]
     }
 
 
@@ -1116,7 +1193,8 @@ def run_pipeline(args: argparse.Namespace, catalog: dict[str, Any]) -> None:
                     args.chunk_size,
                     args.overlap,
                     args.format,
-                    catalog
+                    catalog,
+                    getattr(args, 'embed', False)
                 )
                 results.append(result)
             
@@ -1279,6 +1357,11 @@ def run_pipeline(args: argparse.Namespace, catalog: dict[str, Any]) -> None:
         page_number=1
     )
     
+    # Optionally generate embeddings for chunks
+    do_embed = getattr(args, 'embed', False)
+    if do_embed and chunks:
+        chunks = embed_chunks(chunks, catalog)
+    
     print(f"[pipeline] Created {len(chunks)} chunks, formatting output...", file=sys.stderr)
     
     # Format and output based on requested format
@@ -1344,6 +1427,11 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["json-ld", "markdown", "text"],
         default="json-ld",
         help="Output format (default: json-ld)"
+    )
+    pipeline_parser.add_argument(
+        "--embed",
+        action="store_true",
+        help="Generate embeddings for each chunk using nv-embed-v1 (requires NVIDIA_API_KEY)"
     )
 
     return parser
