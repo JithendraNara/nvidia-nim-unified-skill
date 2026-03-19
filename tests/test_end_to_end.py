@@ -53,7 +53,7 @@ class Args:
     """Helper class to simulate argparse.Namespace for build_request."""
     def __init__(self, capability, image_url=None, query_text=None, passages=None,
                  merge_level=None, confidence_threshold=None, nms_threshold=None,
-                 truncate=None, model=None):
+                 truncate=None, model=None, text=None, input_type=None):
         self.capability = capability
         self.image_url = image_url or []
         self.query_text = query_text
@@ -63,6 +63,8 @@ class Args:
         self.nms_threshold = nms_threshold
         self.truncate = truncate
         self.model = model
+        self.text = text
+        self.input_type = input_type
 
 
 class TestBuildRequestValidation:

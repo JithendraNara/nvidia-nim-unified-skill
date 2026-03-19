@@ -489,6 +489,20 @@ def build_body(capability_name: str, capability: dict[str, Any], args: argparse.
             "truncate": args.truncate or defaults["truncate"]
         }
 
+    if capability_name == "embed":
+        texts = args.text or []
+        if not texts:
+            raise SystemExit("`embed` requires at least one --text argument.")
+        model = args.model or defaults["model"]
+        input_type = args.input_type or defaults.get("input_type", "passage")
+        return {
+            "input": texts,
+            "model": model,
+            "input_type": input_type,
+            "encoding_format": defaults.get("encoding_format", "float"),
+            "truncate": args.truncate or defaults.get("truncate", "END")
+        }
+
     image_urls = args.image_url or []
     if not image_urls:
         raise SystemExit(f"`{capability_name}` requires at least one --image-url.")
@@ -788,7 +802,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     for name in ("build-request", "invoke"):
         command_parser = subparsers.add_parser(name, help=f"{name} for a specific capability")
-        command_parser.add_argument("--capability", choices=["ocr", "page_elements", "table_structure", "graphic_elements", "rerank"], required=True)
+        command_parser.add_argument("--capability", choices=["ocr", "page_elements", "table_structure", "graphic_elements", "rerank", "embed"], required=True)
         command_parser.add_argument("--config", help="Optional runtime config JSON")
         command_parser.add_argument("--image-url", "--image-source", dest="image_url", action="append")
         command_parser.add_argument("--merge-level", action="append", choices=["word", "sentence", "paragraph"])
@@ -796,8 +810,10 @@ def build_parser() -> argparse.ArgumentParser:
         command_parser.add_argument("--nms-threshold", type=float)
         command_parser.add_argument("--query-text")
         command_parser.add_argument("--passage", action="append")
-        command_parser.add_argument("--truncate", choices=["NONE", "END"])
+        command_parser.add_argument("--truncate", choices=["NONE", "START", "END"])
         command_parser.add_argument("--model")
+        command_parser.add_argument("--text", action="append", help="Text to embed (can be specified multiple times)")
+        command_parser.add_argument("--input-type", choices=["passage", "query"], help="Input type for embedding (passage or query)")
 
     return parser
 
