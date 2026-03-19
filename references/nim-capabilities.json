@@ -320,7 +320,7 @@
         "text vector",
         "embedding model"
       ],
-      "fixed_url": "https://ai.api.nvidia.com/v1/embeddings",
+      "fixed_url": "https://integrate.api.nvidia.com/v1/embeddings",
       "endpoint_env": "NVIDIA_NIM_EMBED_URL",
       "auth_env": "NVIDIA_API_KEY",
       "method": "POST",

@@ -172,7 +172,7 @@ class TestBuildEmbedRequest:
         
         request_plan = build_request("embed", args, catalog, {})
         
-        assert request_plan["url"] == "https://ai.api.nvidia.com/v1/embeddings"
+        assert request_plan["url"] == "https://integrate.api.nvidia.com/v1/embeddings"
 
 
 class TestEmbedCapabilityKeywords:
