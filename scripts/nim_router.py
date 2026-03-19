@@ -893,6 +893,123 @@ def format_chunks_text(chunks: list[dict[str, Any]], source: str) -> str:
     return "\n".join(lines).strip()
 
 
+def process_single_file(file_path: str, chunk_size: int, overlap: int, format_type: str, catalog: dict[str, Any]) -> dict[str, Any]:
+    """Process a single file through the pipeline.
+    
+    Args:
+        file_path: Path to the file to process
+        chunk_size: Target chunk size in tokens
+        overlap: Overlap between chunks in tokens
+        format_type: Output format (json, markdown, text)
+        catalog: Capabilities catalog
+        
+    Returns:
+        Dict with source, status, and chunks/output
+    """
+    source = str(file_path)
+    
+    # Convert file to data URL for OCR
+    try:
+        data_url = to_data_url(file_path)
+    except SystemExit as exc:
+        return {
+            "source": source,
+            "status": "error",
+            "error": f"Failed to process input file: {exc}"
+        }
+    
+    # Build OCR request
+    class OcraArgs:
+        """Helper class to simulate argparse.Namespace for OCR."""
+        def __init__(self):
+            self.image_url = [data_url]
+            self.merge_level = ["paragraph"]
+            self.confidence_threshold = None
+            self.nms_threshold = None
+            self.text = None
+            self.input_type = None
+    
+    ocr_args = OcraArgs()
+    runtime = load_runtime_config(None)
+    
+    try:
+        request_plan = build_request("ocr", ocr_args, catalog, runtime)
+    except SystemExit as exc:
+        return {
+            "source": source,
+            "status": "error",
+            "error": f"Failed to build OCR request: {exc}"
+        }
+    
+    # Invoke OCR
+    result = invoke_request(request_plan)
+    
+    if result.get("status") != 200:
+        return {
+            "source": source,
+            "status": "error",
+            "error": f"OCR failed with status {result.get('status')}: {result.get('response')}"
+        }
+    
+    # Extract text from OCR response
+    ocr_response = result.get("response", {})
+    
+    # Handle different response formats
+    if isinstance(ocr_response, dict):
+        # Try to extract text from common response structures
+        if "result" in ocr_response and "text" in ocr_response["result"]:
+            extracted_text = ocr_response["result"]["text"]
+        elif "text" in ocr_response:
+            extracted_text = ocr_response["text"]
+        elif "data" in ocr_response:
+            # Handle data array format
+            texts = []
+            for item in ocr_response.get("data", []):
+                if isinstance(item, dict):
+                    # Try different text field names
+                    for field in ["text", "text_prediction", "text_predictions"]:
+                        if field in item:
+                            if isinstance(item[field], dict) and "text" in item[field]:
+                                texts.append(item[field]["text"])
+                            elif isinstance(item[field], str):
+                                texts.append(item[field])
+                elif isinstance(item, str):
+                    texts.append(item)
+            extracted_text = " ".join(texts) if texts else ""
+        else:
+            extracted_text = str(ocr_response)
+    elif isinstance(ocr_response, str):
+        extracted_text = ocr_response
+    else:
+        extracted_text = str(ocr_response)
+    
+    if not extracted_text:
+        extracted_text = ""
+    
+    # Chunk the text using semantic chunking (respects header/paragraph boundaries)
+    chunks = semantic_chunk_text(
+        extracted_text,
+        chunk_size,
+        overlap,
+        source_filename=source,
+        page_number=1
+    )
+    
+    # Format output based on requested format
+    if format_type == "json":
+        output = format_semantic_chunks_json(chunks, source)
+    elif format_type == "markdown":
+        output = format_semantic_chunks_markdown(chunks, source)
+    else:  # text
+        output = format_semantic_chunks_text(chunks, source)
+    
+    return {
+        "source": source,
+        "status": "success",
+        "result": output
+    }
+
+
 def run_pipeline(args: argparse.Namespace, catalog: dict[str, Any]) -> None:
     """Run the RAG pipeline: file/URL → OCR → chunk → output.
     
@@ -903,6 +1020,81 @@ def run_pipeline(args: argparse.Namespace, catalog: dict[str, Any]) -> None:
     # Determine input source
     if args.input:
         source = str(args.input)
+        input_path = Path(args.input)
+        
+        # Check if input is a directory
+        if input_path.is_dir():
+            # Batch processing: process all files in the directory
+            print(f"[pipeline] Processing directory: {source}", file=sys.stderr)
+            
+            # Collect all files (images and documents)
+            supported_extensions = {'.png', '.jpg', '.jpeg', '.gif', '.bmp', '.pdf', '.tiff', '.webp'}
+            files_to_process = []
+            for ext in supported_extensions:
+                files_to_process.extend(input_path.glob(f'*{ext}'))
+                files_to_process.extend(input_path.glob(f'*{ext.upper()}'))
+            
+            # Sort for consistent ordering
+            files_to_process = sorted(files_to_process)
+            
+            if not files_to_process:
+                raise SystemExit(f"No supported files found in directory: {source}")
+            
+            print(f"[pipeline] Found {len(files_to_process)} files to process", file=sys.stderr)
+            
+            # Process each file
+            results = []
+            for idx, file_path in enumerate(files_to_process, 1):
+                print(f"[pipeline] Processing file {idx}/{len(files_to_process)}: {file_path.name}", file=sys.stderr)
+                result = process_single_file(
+                    str(file_path),
+                    args.chunk_size,
+                    args.overlap,
+                    args.format,
+                    catalog
+                )
+                results.append(result)
+            
+            print(f"[pipeline] Processed {len(results)} files, formatting output...", file=sys.stderr)
+            
+            # Output results as array
+            if args.format == "json":
+                print_json({
+                    "results": results,
+                    "total_files": len(results),
+                    "successful": sum(1 for r in results if r["status"] == "success"),
+                    "failed": sum(1 for r in results if r["status"] == "error")
+                })
+            elif args.format == "markdown":
+                lines = [f"# Batch Processing Results", ""]
+                lines.append(f"Total files: {len(results)}", "")
+                lines.append(f"Successful: {sum(1 for r in results if r['status'] == 'success')}", "")
+                lines.append(f"Failed: {sum(1 for r in results if r['status'] == 'error')}", "")
+                lines.append("")
+                lines.append("---")
+                for idx, result in enumerate(results, 1):
+                    lines.append("")
+                    lines.append(f"## File {idx}: {result['source']}")
+                    lines.append(f"Status: {result['status']}")
+                    if result["status"] == "error":
+                        lines.append(f"Error: {result.get('error', 'Unknown error')}")
+                    else:
+                        lines.append("")
+                        lines.append(str(result.get("result", "")))
+                    lines.append("---")
+                print("\n".join(lines))
+            else:  # text
+                for idx, result in enumerate(results, 1):
+                    print(f"=== File {idx}: {result['source']} ===")
+                    print(f"Status: {result['status']}")
+                    if result["status"] == "error":
+                        print(f"Error: {result.get('error', 'Unknown error')}")
+                    else:
+                        print(result.get("result", ""))
+                    print("")
+            return
+        
+        # Single file processing
         # Convert file to data URL for OCR
         try:
             data_url = to_data_url(args.input)
