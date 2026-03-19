@@ -26,6 +26,11 @@
       "capability": "rerank",
       "source_file": "references/openapi/nvidia-llama-nemotron-rerank-1b-v2.openapi.yaml",
       "source_url": "https://docs.api.nvidia.com/nim/reference/nvidia-llama-nemotron-rerank-1b-v2"
+    },
+    {
+      "capability": "embed",
+      "source_file": null,
+      "source_url": "https://build.nvidia.com/nvidia/nv-embed-v1"
     }
   ],
   "capabilities": {
@@ -301,6 +306,71 @@
           "index": "integer",
           "logit": "number"
         }
+      }
+    },
+    "embed": {
+      "display_name": "Text Embedding",
+      "kind": "text_embedding",
+      "keywords": [
+        "embed",
+        "embedding",
+        "vector",
+        "semantic search",
+        "dense retrieval",
+        "text vector",
+        "embedding model"
+      ],
+      "fixed_url": "https://ai.api.nvidia.com/v1/embeddings",
+      "endpoint_env": "NVIDIA_NIM_EMBED_URL",
+      "auth_env": "NVIDIA_API_KEY",
+      "method": "POST",
+      "path": "/v1/embeddings",
+      "request": {
+        "required_inputs": [
+          "text"
+        ],
+        "input_type": "passage|query",
+        "schema": {
+          "input": [
+            "<text_to_embed>"
+          ],
+          "model": "nvidia/nv-embed-v1",
+          "input_type": "passage|query",
+          "encoding_format": "float",
+          "truncate": "NONE|START|END"
+        },
+        "defaults": {
+          "model": "nvidia/nv-embed-v1",
+          "input_type": "passage",
+          "encoding_format": "float",
+          "truncate": "END"
+        }
+      },
+      "response": {
+        "top_level_fields": [
+          "data",
+          "model",
+          "usage"
+        ],
+        "item_shape": {
+          "index": "integer",
+          "embedding": "array<float>"
+        }
+      },
+      "model_info": {
+        "embedding_dimension": 4096,
+        "max_input_tokens": 32000,
+        "input_types": [
+          "passage",
+          "query"
+        ],
+        "encoding_formats": [
+          "float",
+          "int8",
+          "uint8",
+          "binary",
+          "ubinary"
+        ]
       }
     }
   },
