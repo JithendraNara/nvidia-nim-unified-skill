@@ -1,0 +1,15 @@
+{
+  "featureId": "research-endpoints",
+  "milestone": "research",
+  "status": "pass",
+  "summary": "Successfully added text embedding NIM capability to the capabilities catalog with verified endpoint from build.nvidia.com",
+  "evidence": [
+    "embed capability added to references/nim-capabilities.json",
+    "Endpoint sourced from https://build.nvidia.com/nvidia/nv-embed-v1",
+    "Complete schema with request/response structure, defaults, and model_info",
+    "Embedding dimension: 4096, max input tokens: 32000"
+  ],
+  "issues": [],
+  "sharedStateObservations": [],
+  "reviewerNotes": "The embed capability is well-documented with all required fields including model info, supported encoding formats, and input types."
+}
