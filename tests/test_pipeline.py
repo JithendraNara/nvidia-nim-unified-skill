@@ -501,6 +501,228 @@ class TestFormatSemanticChunksText:
         assert "#" not in result  # No markdown formatting in content
 
 
+class TestFormatSemanticChunksJsonLd:
+    """Test the format_semantic_chunks_jsonld function - VAL-OUTPUT-001, VAL-OUTPUT-002, VAL-OUTPUT-003."""
+
+    def test_format_semantic_chunks_jsonld_basic_structure(self):
+        """Test JSON-LD output has correct @context and @type - VAL-OUTPUT-001."""
+        from nim_router.chunker import Chunk
+        from nim_router.chunker import format_semantic_chunks_jsonld
+        
+        chunks = [
+            Chunk(
+                text="Hello world",
+                page_number=1,
+                section_header="Intro",
+                source_filename="test.txt",
+                start_token=0,
+                end_token=1,
+                chunk_index=0,
+                token_count=2
+            ),
+        ]
+        
+        result = format_semantic_chunks_jsonld(chunks, "test_source")
+        
+        # Check JSON-LD required fields
+        assert "@context" in result
+        assert result["@context"] == "https://schema.org/"
+        assert "@type" in result
+        assert result["@type"] == "ItemList"
+        assert "source" in result
+        assert result["source"] == "test_source"
+        assert "chunkCount" in result
+        assert result["chunkCount"] == 1
+        assert "numberOfItems" in result
+        assert result["numberOfItems"] == 1
+        assert "itemListElement" in result
+        assert len(result["itemListElement"]) == 1
+
+    def test_format_semantic_chunks_jsonld_item_structure(self):
+        """Test JSON-LD item has @type ListItem and metadata - VAL-OUTPUT-001."""
+        from nim_router.chunker import Chunk
+        from nim_router.chunker import format_semantic_chunks_jsonld
+        
+        chunks = [
+            Chunk(
+                text="Hello world",
+                page_number=2,
+                section_header="Introduction",
+                source_filename="document.pdf",
+                start_token=0,
+                end_token=1,
+                chunk_index=0,
+                token_count=2
+            ),
+        ]
+        
+        result = format_semantic_chunks_jsonld(chunks, "document.pdf")
+        
+        item = result["itemListElement"][0]
+        
+        # Check ListItem structure
+        assert item["@type"] == "ListItem"
+        assert item["position"] == 1
+        assert item["text"] == "Hello world"
+        
+        # Check metadata
+        assert "metadata" in item
+        metadata = item["metadata"]
+        assert metadata["pageNumber"] == 2
+        assert metadata["sectionHeader"] == "Introduction"
+        assert metadata["sourceFilename"] == "document.pdf"
+        assert metadata["startToken"] == 0
+        assert metadata["endToken"] == 1
+        assert metadata["tokenCount"] == 2
+
+    def test_format_semantic_chunks_jsonld_with_embeddings(self):
+        """Test JSON-LD output includes embeddings when provided - VAL-OUTPUT-001."""
+        from nim_router.chunker import Chunk
+        from nim_router.chunker import format_semantic_chunks_jsonld
+        
+        chunks = [
+            Chunk(
+                text="First chunk text",
+                page_number=1,
+                section_header="Section A",
+                source_filename="doc.txt",
+                start_token=0,
+                end_token=2,
+                chunk_index=0,
+                token_count=3
+            ),
+            Chunk(
+                text="Second chunk text",
+                page_number=1,
+                section_header="Section A",
+                source_filename="doc.txt",
+                start_token=3,
+                end_token=5,
+                chunk_index=1,
+                token_count=3
+            ),
+        ]
+        
+        # Provide embeddings for each chunk
+        embeddings = [
+            [0.1, 0.2, 0.3],
+            [0.4, 0.5, 0.6]
+        ]
+        
+        result = format_semantic_chunks_jsonld(chunks, "doc.txt", embeddings=embeddings)
+        
+        # Check embeddings are included
+        assert "embedding" in result["itemListElement"][0]
+        assert result["itemListElement"][0]["embedding"] == [0.1, 0.2, 0.3]
+        assert "embedding" in result["itemListElement"][1]
+        assert result["itemListElement"][1]["embedding"] == [0.4, 0.5, 0.6]
+
+    def test_format_semantic_chunks_jsonld_without_embeddings(self):
+        """Test JSON-LD output without embeddings (embeddings field omitted) - VAL-OUTPUT-001."""
+        from nim_router.chunker import Chunk
+        from nim_router.chunker import format_semantic_chunks_jsonld
+        
+        chunks = [
+            Chunk(
+                text="Hello world",
+                page_number=1,
+                section_header="",
+                source_filename="test.txt",
+                start_token=0,
+                end_token=1,
+                chunk_index=0,
+                token_count=2
+            ),
+        ]
+        
+        result = format_semantic_chunks_jsonld(chunks, "test.txt")
+        
+        # Embeddings field should not be present when not provided
+        assert "embedding" not in result["itemListElement"][0]
+
+    def test_format_semantic_chunks_jsonld_multiple_chunks(self):
+        """Test JSON-LD with multiple chunks - VAL-OUTPUT-001."""
+        from nim_router.chunker import Chunk
+        from nim_router.chunker import format_semantic_chunks_jsonld
+        
+        chunks = [
+            Chunk(
+                text="First chunk",
+                page_number=1,
+                section_header="Header 1",
+                source_filename="doc.txt",
+                start_token=0,
+                end_token=1,
+                chunk_index=0,
+                token_count=2
+            ),
+            Chunk(
+                text="Second chunk",
+                page_number=1,
+                section_header="Header 1",
+                source_filename="doc.txt",
+                start_token=2,
+                end_token=3,
+                chunk_index=1,
+                token_count=2
+            ),
+            Chunk(
+                text="Third chunk",
+                page_number=2,
+                section_header="Header 2",
+                source_filename="doc.txt",
+                start_token=4,
+                end_token=5,
+                chunk_index=2,
+                token_count=2
+            ),
+        ]
+        
+        result = format_semantic_chunks_jsonld(chunks, "doc.txt")
+        
+        assert result["chunkCount"] == 3
+        assert len(result["itemListElement"]) == 3
+        
+        # Check positions are correct
+        assert result["itemListElement"][0]["position"] == 1
+        assert result["itemListElement"][1]["position"] == 2
+        assert result["itemListElement"][2]["position"] == 3
+        
+        # Check page numbers are preserved
+        assert result["itemListElement"][0]["metadata"]["pageNumber"] == 1
+        assert result["itemListElement"][1]["metadata"]["pageNumber"] == 1
+        assert result["itemListElement"][2]["metadata"]["pageNumber"] == 2
+
+
+class TestPipelineOutputFormats:
+    """Test pipeline output format options - VAL-OUTPUT-001, VAL-OUTPUT-002, VAL-OUTPUT-003."""
+
+    def test_pipeline_format_jsonld_option_exists(self):
+        """Verify: --format json-ld option is available."""
+        import subprocess
+        result = subprocess.run(
+            ["python3", str(Path(__file__).parent.parent / "scripts" / "nim_router.py"), "pipeline", "--help"],
+            capture_output=True,
+            text=True,
+            cwd=Path(__file__).parent.parent
+        )
+        
+        assert "json-ld" in result.stdout
+
+    def test_pipeline_format_jsonld_help_shows_option(self):
+        """Verify --format shows json-ld as an option."""
+        import subprocess
+        result = subprocess.run(
+            ["python3", str(Path(__file__).parent.parent / "scripts" / "nim_router.py"), "pipeline", "--help"],
+            capture_output=True,
+            text=True,
+            cwd=Path(__file__).parent.parent
+        )
+        
+        # The help should show json-ld in choices
+        assert "json-ld" in result.stdout
+
+
 class TestBatchProcessing:
     """Test batch folder processing - VAL-PIPELINE-005."""
 
@@ -535,7 +757,7 @@ class TestBatchProcessing:
                 str(fixture_path),
                 chunk_size=512,
                 overlap=64,
-                format_type="json",
+                format_type="json-ld",
                 catalog=catalog
             )
             
@@ -602,7 +824,7 @@ class TestBatchProcessing:
             "/nonexistent/file.png",
             chunk_size=512,
             overlap=64,
-            format_type="json",
+            format_type="json-ld",
             catalog=catalog
         )
         

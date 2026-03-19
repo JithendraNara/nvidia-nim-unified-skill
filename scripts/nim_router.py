@@ -52,6 +52,7 @@ from nim_router.chunker import (
     format_semantic_chunks_json,
     format_semantic_chunks_markdown,
     format_semantic_chunks_text,
+    format_semantic_chunks_jsonld,
 )
 
 
@@ -953,7 +954,7 @@ def process_single_file(file_path: str, chunk_size: int, overlap: int, format_ty
         file_path: Path to the file to process
         chunk_size: Target chunk size in tokens
         overlap: Overlap between chunks in tokens
-        format_type: Output format (json, markdown, text)
+        format_type: Output format (json-ld, markdown, text)
         catalog: Capabilities catalog
         
     Returns:
@@ -1049,8 +1050,8 @@ def process_single_file(file_path: str, chunk_size: int, overlap: int, format_ty
     )
     
     # Format output based on requested format
-    if format_type == "json":
-        output = format_semantic_chunks_json(chunks, source)
+    if format_type == "json-ld":
+        output = format_semantic_chunks_jsonld(chunks, source)
     elif format_type == "markdown":
         output = format_semantic_chunks_markdown(chunks, source)
     else:  # text
@@ -1111,13 +1112,29 @@ def run_pipeline(args: argparse.Namespace, catalog: dict[str, Any]) -> None:
             print(f"[pipeline] Processed {len(results)} files, formatting output...", file=sys.stderr)
             
             # Output results as array
-            if args.format == "json":
-                print_json({
-                    "results": results,
-                    "total_files": len(results),
+            if args.format == "json-ld":
+                # For JSON-LD batch output, wrap results in a JSON-LD ItemList
+                batch_jsonld = {
+                    "@context": "https://schema.org/",
+                    "@type": "ItemList",
+                    "totalFiles": len(results),
                     "successful": sum(1 for r in results if r["status"] == "success"),
-                    "failed": sum(1 for r in results if r["status"] == "error")
-                })
+                    "failed": sum(1 for r in results if r["status"] == "error"),
+                    "itemListElement": []
+                }
+                for idx, result in enumerate(results):
+                    item = {
+                        "@type": "ListItem",
+                        "position": idx + 1,
+                        "source": result["source"],
+                        "status": result["status"],
+                    }
+                    if result["status"] == "error":
+                        item["error"] = result.get("error", "Unknown error")
+                    else:
+                        item["result"] = result.get("result", {})
+                    batch_jsonld["itemListElement"].append(item)
+                print_json(batch_jsonld)
             elif args.format == "markdown":
                 lines = [f"# Batch Processing Results", ""]
                 lines.append(f"Total files: {len(results)}", "")
@@ -1243,8 +1260,8 @@ def run_pipeline(args: argparse.Namespace, catalog: dict[str, Any]) -> None:
     print(f"[pipeline] Created {len(chunks)} chunks, formatting output...", file=sys.stderr)
     
     # Format and output based on requested format
-    if args.format == "json":
-        output = format_semantic_chunks_json(chunks, source)
+    if args.format == "json-ld":
+        output = format_semantic_chunks_jsonld(chunks, source)
         print_json(output)
     elif args.format == "markdown":
         print(format_semantic_chunks_markdown(chunks, source))
@@ -1302,9 +1319,9 @@ def build_parser() -> argparse.ArgumentParser:
     pipeline_parser.add_argument("--overlap", type=int, default=64, help="Overlap between chunks in tokens (default: 64)")
     pipeline_parser.add_argument(
         "--format",
-        choices=["json", "markdown", "text"],
-        default="json",
-        help="Output format (default: json)"
+        choices=["json-ld", "markdown", "text"],
+        default="json-ld",
+        help="Output format (default: json-ld)"
     )
 
     return parser

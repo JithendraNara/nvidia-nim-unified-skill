@@ -437,3 +437,63 @@ def format_semantic_chunks_text(chunks: list[Chunk], source: str) -> str:
         lines.append("")  # Empty line between chunks
     
     return "\n".join(lines).strip()
+
+
+def format_semantic_chunks_jsonld(
+    chunks: list[Chunk],
+    source: str,
+    embeddings: list[list[float]] | None = None
+) -> dict[str, Any]:
+    """Format semantic chunks as JSON-LD for vector DB ingestion.
+    
+    JSON-LD format with @context, @type, and embeddings for each chunk.
+    Uses Schema.org vocabulary for structured data.
+    
+    Args:
+        chunks: List of Chunk objects
+        source: Source identifier (file path or URL)
+        embeddings: Optional list of embedding vectors, one per chunk.
+                   If provided, must have same length as chunks.
+        
+    Returns:
+        JSON-LD compliant dict with chunks and metadata
+    """
+    item_list_elements = []
+    
+    for idx, chunk in enumerate(chunks):
+        # Build metadata object
+        metadata = {
+            "pageNumber": chunk.page_number,
+            "sourceFilename": chunk.source_filename,
+            "startToken": chunk.start_token,
+            "endToken": chunk.end_token,
+            "tokenCount": chunk.token_count,
+        }
+        if chunk.section_header:
+            metadata["sectionHeader"] = chunk.section_header
+        
+        # Build list item
+        list_item: dict[str, Any] = {
+            "@type": "ListItem",
+            "position": chunk.chunk_index + 1,
+            "text": chunk.text,
+            "metadata": metadata,
+        }
+        
+        # Add embedding if provided
+        if embeddings and idx < len(embeddings):
+            list_item["embedding"] = embeddings[idx]
+        
+        item_list_elements.append(list_item)
+    
+    # Build JSON-LD document
+    jsonld: dict[str, Any] = {
+        "@context": "https://schema.org/",
+        "@type": "ItemList",
+        "source": source,
+        "chunkCount": len(chunks),
+        "numberOfItems": len(chunks),
+        "itemListElement": item_list_elements,
+    }
+    
+    return jsonld
