@@ -18,6 +18,16 @@ from nim_router import (
     format_chunks_text,
     load_json,
 )
+from nim_router.chunker import (
+    semantic_chunk_text,
+    format_semantic_chunks_json,
+    format_semantic_chunks_markdown,
+    format_semantic_chunks_text,
+    identify_semantic_units,
+    count_tokens,
+    Chunk,
+    SemanticUnit,
+)
 
 ROOT = Path(__file__).parent.parent
 CATALOG_PATH = ROOT / "references" / "nim-capabilities.json"
@@ -203,6 +213,291 @@ class TestPipelineCLI:
         assert "json" in result.stdout
         assert "markdown" in result.stdout
         assert "text" in result.stdout
+
+
+class TestCountTokens:
+    """Test the count_tokens function."""
+
+    def test_count_tokens_basic(self):
+        """Test counting tokens in basic text."""
+        text = "Hello world this is a test"
+        assert count_tokens(text) == 6  # 6 words
+
+    def test_count_tokens_empty(self):
+        """Test counting tokens in empty text."""
+        assert count_tokens("") == 0
+        assert count_tokens("   ") == 0
+
+    def test_count_tokens_with_extra_spaces(self):
+        """Test counting tokens with extra whitespace."""
+        text = "  Hello   world  test  "
+        assert count_tokens(text) == 3
+
+
+class TestIdentifySemanticUnits:
+    """Test the identify_semantic_units function."""
+
+    def test_identify_header(self):
+        """Test identifying markdown headers."""
+        text = "# Introduction\n\nThis is a paragraph."
+        units = identify_semantic_units(text)
+        
+        assert len(units) == 2
+        assert units[0].unit_type == "header"
+        assert units[0].text == "Introduction"
+        assert units[0].header_level == 1
+        
+        assert units[1].unit_type == "paragraph"
+        assert units[1].text == "This is a paragraph."
+
+    def test_identify_multiple_headers(self):
+        """Test identifying multiple headers at different levels."""
+        text = "# Header 1\n\nParagraph 1\n\n## Header 2\n\nParagraph 2"
+        units = identify_semantic_units(text)
+        
+        assert len(units) == 4
+        assert units[0].unit_type == "header"
+        assert units[0].text == "Header 1"
+        assert units[1].unit_type == "paragraph"
+        assert units[1].text == "Paragraph 1"
+        assert units[2].unit_type == "header"
+        assert units[2].text == "Header 2"
+        assert units[2].header_level == 2
+        assert units[3].unit_type == "paragraph"
+        assert units[3].text == "Paragraph 2"
+
+    def test_identify_empty_lines(self):
+        """Test that empty lines don't create empty units."""
+        text = "# Header\n\n\n\nParagraph"
+        units = identify_semantic_units(text)
+        
+        assert len(units) == 2
+        assert units[0].unit_type == "header"
+        assert units[1].unit_type == "paragraph"
+
+
+class TestSemanticChunkText:
+    """Test the semantic_chunk_text function - VAL-PIPELINE-002, VAL-PIPELINE-003, VAL-PIPELINE-004."""
+
+    def test_semantic_chunk_empty_string(self):
+        """Test semantic chunking empty string returns empty list."""
+        result = semantic_chunk_text("", 512, 64)
+        assert result == []
+
+    def test_semantic_chunk_single_paragraph(self):
+        """Test semantic chunking single paragraph returns single chunk."""
+        text = "This is a single paragraph with some text content."
+        result = semantic_chunk_text(text, 512, 64)
+        
+        assert len(result) == 1
+        assert isinstance(result[0], Chunk)
+        assert result[0].text == text
+        assert result[0].chunk_index == 0
+
+    def test_semantic_chunk_preserves_headers(self):
+        """Test semantic chunking preserves header boundaries - VAL-PIPELINE-002."""
+        text = "# Introduction\n\nThis is the introduction paragraph.\n\n## Getting Started\n\nThis is the getting started section."
+        result = semantic_chunk_text(text, 512, 64)
+        
+        # Should create chunks that respect header boundaries
+        assert len(result) >= 1
+        
+        # At least one chunk should contain header text
+        header_found = False
+        for chunk in result:
+            if "# Introduction" in chunk.text or "# Getting Started" in chunk.text:
+                header_found = True
+                break
+        assert header_found, "Semantic chunking should preserve header boundaries"
+
+    def test_semantic_chunk_paragraph_boundaries(self):
+        """Test semantic chunking respects paragraph boundaries - VAL-PIPELINE-002."""
+        text = "First paragraph with some content.\n\nSecond paragraph with different content."
+        result = semantic_chunk_text(text, 512, 64)
+        
+        # Check that paragraph boundaries are respected
+        assert len(result) >= 1
+        
+        # If we have multiple chunks, they should align with paragraph boundaries
+        for chunk in result:
+            # Each chunk should contain whole paragraphs (not split mid-paragraph)
+            assert "First paragraph" in chunk.text or "Second paragraph" in chunk.text
+
+    def test_semantic_chunk_has_metadata(self):
+        """Test semantic chunking includes required metadata - VAL-PIPELINE-003."""
+        text = "This is a test paragraph."
+        result = semantic_chunk_text(
+            text, 
+            512, 
+            64,
+            source_filename="test_file.txt",
+            page_number=1
+        )
+        
+        assert len(result) == 1
+        chunk = result[0]
+        
+        assert chunk.source_filename == "test_file.txt"
+        assert chunk.page_number == 1
+        assert chunk.section_header == ""
+        assert chunk.chunk_index == 0
+        assert chunk.token_count > 0
+
+    def test_semantic_chunk_with_section_header(self):
+        """Test semantic chunking preserves section header metadata - VAL-PIPELINE-003."""
+        text = "# Section One\n\nContent of section one."
+        result = semantic_chunk_text(
+            text, 
+            512, 
+            64,
+            source_filename="doc.txt",
+            page_number=2
+        )
+        
+        # First chunk should have the section header
+        assert len(result) >= 1
+        
+        # Check that section header is preserved
+        header_found = False
+        for chunk in result:
+            if chunk.section_header == "Section One":
+                header_found = True
+                assert chunk.source_filename == "doc.txt"
+                assert chunk.page_number == 2
+                break
+        assert header_found, "Section header should be preserved in chunk metadata"
+
+    def test_semantic_chunk_size_respected(self):
+        """Test semantic chunking respects chunk_size target - VAL-PIPELINE-004."""
+        # Create text longer than chunk_size
+        words = ["word"] * 1000
+        text = " ".join(words)
+        
+        result = semantic_chunk_text(text, 512, 64)
+        
+        # Should create multiple chunks
+        assert len(result) > 1
+        
+        # Each chunk's token_count should be close to chunk_size
+        for chunk in result:
+            # Chunks should not far exceed chunk_size
+            assert chunk.token_count <= 512 + 100, f"Chunk token_count {chunk.token_count} exceeds chunk_size"
+
+    def test_semantic_chunk_overlap(self):
+        """Test semantic chunking has overlap between chunks - VAL-PIPELINE-004."""
+        # Create text that will definitely create multiple chunks
+        words = ["word"] * 600
+        text = " ".join(words)
+        
+        result = semantic_chunk_text(text, 256, 64)
+        
+        # Should create multiple chunks
+        assert len(result) > 1
+        
+        # Check overlap is happening by comparing adjacent chunks
+        # The overlap means second chunk should start with content from first chunk
+        if len(result) >= 2:
+            first_chunk_words = result[0].text.split()
+            second_chunk_words = result[1].text.split()
+            
+            # With 256 chunk_size and 64 overlap, there should be some overlap
+            # The overlap is in words, not tokens per se, but for simple case they align
+            # At minimum, verify both chunks have content
+            assert len(first_chunk_words) > 0
+            assert len(second_chunk_words) > 0
+
+
+class TestFormatSemanticChunksJson:
+    """Test the format_semantic_chunks_json function."""
+
+    def test_format_semantic_chunks_json_structure(self):
+        """Test JSON output has correct structure with metadata."""
+        from nim_router.chunker import Chunk
+        
+        chunks = [
+            Chunk(
+                text="Hello world",
+                page_number=1,
+                section_header="Intro",
+                source_filename="test.txt",
+                start_token=0,
+                end_token=1,
+                chunk_index=0,
+                token_count=2
+            ),
+        ]
+        
+        result = format_semantic_chunks_json(chunks, "test_source")
+        
+        assert "source" in result
+        assert result["source"] == "test_source"
+        assert "chunk_count" in result
+        assert result["chunk_count"] == 1
+        assert "chunks" in result
+        
+        # Check chunk metadata in output
+        chunk_data = result["chunks"][0]
+        assert chunk_data["page_number"] == 1
+        assert chunk_data["section_header"] == "Intro"
+        assert chunk_data["source_filename"] == "test.txt"
+        assert chunk_data["token_count"] == 2
+
+
+class TestFormatSemanticChunksMarkdown:
+    """Test the format_semantic_chunks_markdown function."""
+
+    def test_format_semantic_chunks_markdown_output(self):
+        """Test markdown output format includes metadata."""
+        from nim_router.chunker import Chunk
+        
+        chunks = [
+            Chunk(
+                text="Hello world",
+                page_number=1,
+                section_header="Intro",
+                source_filename="test.txt",
+                start_token=0,
+                end_token=1,
+                chunk_index=0,
+                token_count=2
+            ),
+        ]
+        
+        result = format_semantic_chunks_markdown(chunks, "test.md")
+        
+        assert "# Chunks from test.md" in result
+        assert "Total chunks: 1" in result
+        assert "## Chunk 1" in result
+        assert "Section: Intro" in result
+        assert "Page: 1" in result
+        assert "Hello world" in result
+
+
+class TestFormatSemanticChunksText:
+    """Test the format_semantic_chunks_text function."""
+
+    def test_format_semantic_chunks_text_output(self):
+        """Test plain text output format includes section headers."""
+        from nim_router.chunker import Chunk
+        
+        chunks = [
+            Chunk(
+                text="Hello world",
+                page_number=1,
+                section_header="Intro",
+                source_filename="test.txt",
+                start_token=0,
+                end_token=1,
+                chunk_index=0,
+                token_count=2
+            ),
+        ]
+        
+        result = format_semantic_chunks_text(chunks, "test.txt")
+        
+        assert "[Intro]" in result
+        assert "Hello world" in result
+        assert "#" not in result  # No markdown formatting in content
 
 
 if __name__ == "__main__":

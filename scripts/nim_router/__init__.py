@@ -49,6 +49,15 @@ __all__ = [
     "get_rate_limiter",
     "initialize_rate_limiter",
     "close_rate_limiter",
+    # From this package - chunker module
+    "Chunk",
+    "SemanticUnit",
+    "semantic_chunk_text",
+    "format_semantic_chunks_json",
+    "format_semantic_chunks_markdown",
+    "format_semantic_chunks_text",
+    "count_tokens",
+    "identify_semantic_units",
 ]
 
 # Copy parent module's exports to this namespace
@@ -70,4 +79,14 @@ from nim_router.rate_limiter import (
     get_rate_limiter,
     initialize_rate_limiter,
     close_rate_limiter,
+)
+from nim_router.chunker import (
+    Chunk,
+    SemanticUnit,
+    semantic_chunk_text,
+    format_semantic_chunks_json,
+    format_semantic_chunks_markdown,
+    format_semantic_chunks_text,
+    count_tokens,
+    identify_semantic_units,
 )

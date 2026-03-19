@@ -46,6 +46,14 @@ from nim_router.rate_limiter import (
     close_rate_limiter,
 )
 
+# Import semantic chunker from the extended package
+from nim_router.chunker import (
+    semantic_chunk_text,
+    format_semantic_chunks_json,
+    format_semantic_chunks_markdown,
+    format_semantic_chunks_text,
+)
+
 
 # Circuit breaker registry - one per capability
 # This persists state across invocations for the same capability
@@ -973,23 +981,25 @@ def run_pipeline(args: argparse.Namespace, catalog: dict[str, Any]) -> None:
     
     print(f"[pipeline] Extracted {len(extracted_text.split())} tokens, chunking...", file=sys.stderr)
     
-    # Chunk the text
-    chunks = chunk_text(extracted_text, args.chunk_size, args.overlap)
+    # Chunk the text using semantic chunking (respects header/paragraph boundaries)
+    chunks = semantic_chunk_text(
+        extracted_text,
+        args.chunk_size,
+        args.overlap,
+        source_filename=source,
+        page_number=1
+    )
     
     print(f"[pipeline] Created {len(chunks)} chunks, formatting output...", file=sys.stderr)
     
-    # Add source metadata to each chunk
-    for chunk in chunks:
-        chunk["source"] = source
-    
     # Format and output based on requested format
     if args.format == "json":
-        output = format_chunks_json(chunks, source)
+        output = format_semantic_chunks_json(chunks, source)
         print_json(output)
     elif args.format == "markdown":
-        print(format_chunks_markdown(chunks, source))
+        print(format_semantic_chunks_markdown(chunks, source))
     else:  # text
-        print(format_chunks_text(chunks, source))
+        print(format_semantic_chunks_text(chunks, source))
 
 
 def print_json(value: Any) -> None:
