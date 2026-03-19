@@ -1,0 +1,30 @@
+{
+  "milestone": "pipeline",
+  "round": 1,
+  "status": "pass",
+  "assertionsSummary": {
+    "total": 5,
+    "passed": 5,
+    "failed": 0,
+    "blocked": 0
+  },
+  "passedAssertions": [
+    "VAL-PIPELINE-001",
+    "VAL-PIPELINE-002",
+    "VAL-PIPELINE-003",
+    "VAL-PIPELINE-004",
+    "VAL-PIPELINE-005"
+  ],
+  "failedAssertions": [],
+  "blockedAssertions": [],
+  "appliedUpdates": [],
+  "previousRound": null,
+  "flowReports": [
+    "flows/cli-assertions.json"
+  ],
+  "notes": {
+    "nvidiaApiKeyRequired": "Live OCR/embed API calls require NVIDIA_API_KEY. Unit tests mock the API and pass. CLI logic is correct - OCR fails with 401 when key not set, which is expected behavior.",
+    "allTestsPassed": "All 32 pipeline unit tests pass (pytest tests/test_pipeline.py -v)",
+    "cliInterfaceVerified": "pipeline --help works, --chunk-size/--overlap/--format options exist, batch processing works"
+  }
+}
