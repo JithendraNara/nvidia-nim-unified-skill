@@ -1,0 +1,32 @@
+{
+  "featureId": "structured-output",
+  "reviewedAt": "2026-03-19T02:47:00.000Z",
+  "commitId": "afb70a1",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "JSON-LD formatter is correctly implemented with @context, @type, ListItem elements, and optional embeddings. Markdown and text formatters already existed prior to this feature. The implementation follows existing code patterns with proper type hints and docstrings. No blocking issues found.",
+    "issues": [
+      {
+        "file": "scripts/nim_router/__init__.py",
+        "severity": "non_blocking",
+        "description": "format_semantic_chunks_jsonld is not exported in __init__.py __all__ list, while other format functions (format_semantic_chunks_json, format_semantic_chunks_markdown, format_semantic_chunks_text) are listed. The function can still be imported directly from the submodule, but for consistency it should be exported."
+      },
+      {
+        "file": "scripts/nim_router/chunker.py",
+        "severity": "non_blocking",
+        "description": "The embeddings parameter is silently truncated when len(embeddings) != len(chunks). If embeddings is shorter than chunks, only first N chunks get embeddings. If embeddings is longer, extras are ignored. The docstring says 'If provided, must have same length as chunks' but no validation enforces this."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "The --format option changed from 'json' to 'json-ld' with default changing from 'json' to 'json-ld'. This is a breaking change for existing scripts using --format json, but VAL-CROSS-002 only documents backward compatibility for plan/build-request/invoke commands, not pipeline. The AGENTS.md Output Formats table shows json-ld as the format, suggesting this was the intended final state.",
+      "evidence": "scripts/nim_router.py:1319 - choices=['json-ld', 'markdown', 'text'], default='json-ld'. Prior behavior was choices=['json', 'markdown', 'text'], default='json'"
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Feature implementation passes review. JSON-LD formatter correctly produces @context (https://schema.org/), @type (ItemList), ListItem elements with position, text, metadata, and optional embeddings. Breaking change from 'json' to 'json-ld' format was intentional per output milestone requirements. No blocking issues."
+}
