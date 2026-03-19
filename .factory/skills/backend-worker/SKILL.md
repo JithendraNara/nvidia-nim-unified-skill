@@ -9,108 +9,45 @@ NOTE: Startup and cleanup are handled by `worker-base`. This skill defines the W
 
 ## When to Use This Skill
 
-Features involving Python CLI tools, API servers, or backend services. This skill handles:
+Features involving Python CLI tools, Python scripting, or data processing. This skill handles:
 - CLI command implementation
-- Async execution patterns
-- REST API development with FastAPI
-- Retry/circuit breaker logic
-- Caching layers
-- Observability/logging
+- API client code
+- Data processing and chunking
+- Output formatting
 
 ## Work Procedure
 
 ### 1. Read Context
 - Read `mission.md` to understand feature requirements
-- Read current implementation in `nim_router.py` and related files
-- Read `AGENTS.md` for constraints and conventions
+- Read existing `nim_router.py` structure
+- Understand current capabilities
 
 ### 2. Write Tests First (TDD)
-Before writing any implementation code:
-- Create `tests/test_<feature_name>.py` with failing test cases
-- Tests must fail against current code (red)
-- Cover the expected behavior listed in features.json
-
-Example test structure:
-```python
-import pytest
-from nim_router import async_engine
-
-@pytest.mark.asyncio
-async def test_parallel_execution():
-    """Async batch should be faster than sequential."""
-    # Arrange
-    urls = ["url1", "url2", "url3"]
-    # Act
-    start = time.time()
-    results = await async_engine.invoke_batch(urls, async_mode=True)
-    elapsed = time.time() - start
-    # Assert
-    assert len(results) == 3
-    assert elapsed < 3.0  # Should be parallel, not 3x sequential
-```
+Create `tests/test_<feature>.py` with failing tests before implementation.
 
 ### 3. Implement Feature
-- Implement in the appropriate module under `nim_router/`
-- Follow coding conventions in AGENTS.md
+- Add to appropriate module under `scripts/nim_router/`
+- Follow existing code style
 - Add type hints and docstrings
-- Maintain backward compatibility with original CLI
 
-### 4. Verify Implementation
+### 4. Verify
 - Run tests: `pytest tests/ -v`
-- Run typecheck: `python3 -m py_compile`
-- Verify CLI still works: `python3 scripts/nim_router.py plan --task-query "extract text"`
-
-### 5. Manual Verification
-For each expectedBehavior item in features.json:
-- Execute the specific command or scenario
-- Record the actual output/behavior
-- Confirm it matches expected behavior
+- Typecheck: `python3 -m py_compile`
+- Manual test with real API if available
 
 ## Example Handoff
 
 ```json
 {
-  "salientSummary": "Implemented async execution engine with parallel batch processing. Added --async flag that processes multiple images concurrently. All tests pass including new async tests.",
-  "whatWasImplemented": "Async execution engine in nim_router/async_engine.py supporting parallel invocation of capabilities. Uses asyncio.gather for concurrent HTTP requests. New --async flag on invoke command enables parallel mode.",
+  "salientSummary": "Implemented embed capability and semantic chunker",
+  "whatWasImplemented": "Added embed.py with text embedding NIM support, chunker.py with semantic boundary detection",
   "whatWasLeftUndone": "",
   "verification": {
     "commandsRun": [
-      {
-        "command": "pytest tests/test_async_engine.py -v",
-        "exitCode": 0,
-        "observation": "4 tests passed: test_parallel_execution, test_async_errors_dont_block, test_sequential_fallback, test_timing"
-      },
-      {
-        "command": "python3 scripts/nim_router.py plan --task-query 'extract text'",
-        "exitCode": 0,
-        "observation": "Returns {primary_capability: 'ocr', workflow: ['ocr']} - unchanged from original"
-      },
-      {
-        "command": "python3 scripts/nim_router.py --async invoke --capability ocr --image-url url1 --image-url url2",
-        "exitCode": 0,
-        "observation": "Both images processed in parallel, results returned as list"
-      }
-    ],
-    "interactiveChecks": []
-  },
-  "tests": {
-    "added": [
-      {
-        "file": "tests/test_async_engine.py",
-        "cases": [
-          {"name": "test_parallel_execution", "verifies": "VAL-ASYNC-001"},
-          {"name": "test_async_errors_dont_block", "verifies": "VAL-ASYNC-002"}
-        ]
-      }
+      {"command": "pytest tests/test_embed.py -v", "exitCode": 0, "observation": "3 tests passed"}
     ]
   },
+  "tests": {"added": [{"file": "tests/test_embed.py", "cases": [{"name": "test_build_embed_request"}]}]},
   "discoveredIssues": []
 }
 ```
-
-## When to Return to Orchestrator
-
-- Implementation requires API changes that break backward compatibility
-- NVIDIA API behavior differs from documentation
-- Feature scope significantly exceeds original estimate
-- Missing dependencies that can't be resolved
