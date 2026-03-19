@@ -1017,16 +1017,27 @@ def process_single_file(file_path: str, chunk_size: int, overlap: int, format_ty
             extracted_text = ocr_response["text"]
         elif "data" in ocr_response:
             # Handle data array format
+            # OCR response structure: {"data": [{"text_detections": [{"text_prediction": {"text": "...", "confidence": 0.99}}]}]}
             texts = []
             for item in ocr_response.get("data", []):
                 if isinstance(item, dict):
-                    # Try different text field names
-                    for field in ["text", "text_prediction", "text_predictions"]:
-                        if field in item:
-                            if isinstance(item[field], dict) and "text" in item[field]:
-                                texts.append(item[field]["text"])
-                            elif isinstance(item[field], str):
-                                texts.append(item[field])
+                    # First check for text_detections (OCR response format)
+                    if "text_detections" in item and isinstance(item["text_detections"], list):
+                        for detection in item["text_detections"]:
+                            if isinstance(detection, dict) and "text_prediction" in detection:
+                                tp = detection["text_prediction"]
+                                if isinstance(tp, dict) and "text" in tp:
+                                    texts.append(tp["text"])
+                                elif isinstance(tp, str):
+                                    texts.append(tp)
+                    # Then check for direct text fields
+                    else:
+                        for field in ["text", "text_prediction", "text_predictions"]:
+                            if field in item:
+                                if isinstance(item[field], dict) and "text" in item[field]:
+                                    texts.append(item[field]["text"])
+                                elif isinstance(item[field], str):
+                                    texts.append(item[field])
                 elif isinstance(item, str):
                     texts.append(item)
             extracted_text = " ".join(texts) if texts else ""
@@ -1223,16 +1234,27 @@ def run_pipeline(args: argparse.Namespace, catalog: dict[str, Any]) -> None:
             extracted_text = ocr_response["text"]
         elif "data" in ocr_response:
             # Handle data array format
+            # OCR response structure: {"data": [{"text_detections": [{"text_prediction": {"text": "...", "confidence": 0.99}}]}]}
             texts = []
             for item in ocr_response.get("data", []):
                 if isinstance(item, dict):
-                    # Try different text field names
-                    for field in ["text", "text_prediction", "text_predictions"]:
-                        if field in item:
-                            if isinstance(item[field], dict) and "text" in item[field]:
-                                texts.append(item[field]["text"])
-                            elif isinstance(item[field], str):
-                                texts.append(item[field])
+                    # First check for text_detections (OCR response format)
+                    if "text_detections" in item and isinstance(item["text_detections"], list):
+                        for detection in item["text_detections"]:
+                            if isinstance(detection, dict) and "text_prediction" in detection:
+                                tp = detection["text_prediction"]
+                                if isinstance(tp, dict) and "text" in tp:
+                                    texts.append(tp["text"])
+                                elif isinstance(tp, str):
+                                    texts.append(tp)
+                    # Then check for direct text fields
+                    else:
+                        for field in ["text", "text_prediction", "text_predictions"]:
+                            if field in item:
+                                if isinstance(item[field], dict) and "text" in item[field]:
+                                    texts.append(item[field]["text"])
+                                elif isinstance(item[field], str):
+                                    texts.append(item[field])
                 elif isinstance(item, str):
                     texts.append(item)
             extracted_text = " ".join(texts) if texts else ""
