@@ -1,21 +1,22 @@
 ---
 name: nvidia-nim-unified
-description: Use when a task needs NVIDIA NIM OCR, page elements, table structure, graphic element detection, or passage reranking through one shared routing layer. Selects the right capability or multi-step workflow from a free-form query, prepares requests, and can invoke the configured endpoint.
-short-description: Unified NVIDIA NIM router for OCR, layout, and reranking
+description: Use when a task needs NVIDIA NIM OCR, page elements, table structure, graphic element detection, passage reranking, or text embedding through one shared routing layer. Selects the right capability or multi-step workflow from a free-form query, prepares requests, and can invoke the configured endpoint. Also supports RAG pipeline mode: file/URL → OCR → semantic chunking → structured output.
+short-description: Unified NVIDIA NIM router for OCR, layout, reranking, embedding, and RAG pipelines
 aliases: [nim, nvidia-nim]
-trigger_keywords: [extract text, OCR, document layout, page elements, table structure, table cells, chart labels, rerank passages, detect layout, image to text, pdf text extraction, passage ranking, search relevance]
+trigger_keywords: [extract text, OCR, document layout, page elements, table structure, table cells, chart labels, rerank passages, detect layout, image to text, pdf text extraction, passage ranking, search relevance, embed text, semantic search, vector embedding, semantic chunking, RAG pipeline]
 metadata: {openclaw: {emoji: "🟩", homepage: "https://github.com/JithendraNara/nvidia-nim-unified-skill", requires: {anyBins: [python3, python]}}}
 ---
 
 # NVIDIA NIM Unified
 
-This skill wraps five NVIDIA NIM capabilities behind one routing layer:
+This skill wraps six NVIDIA NIM capabilities behind one routing layer:
 
 - `ocr`
 - `page_elements`
 - `table_structure`
 - `graphic_elements`
 - `rerank`
+- `embed`
 
 Do not pretend these are one physical OpenAPI endpoint. They are different capabilities with different request shapes. Treat this skill as the abstraction layer that hides those differences from the agent.
 
@@ -51,6 +52,8 @@ The skill loads automatically when the task description matches trigger keywords
 - The user asks to detect document layout, page sections, charts, tables, or headers.
 - The user asks to keep table or chart structure while processing an image.
 - The user asks to rerank passages against a query.
+- The user asks to embed text for semantic search or vector storage.
+- The user asks to process files through a RAG pipeline (extract → chunk → format).
 - The user wants one shared NVIDIA workflow that Codex, Claude, and OpenClaw can all call.
 
 ## Files
@@ -215,6 +218,65 @@ python3 {baseDir}/scripts/nim_router.py invoke \
   --passage "RTX 4090: 1 TB/s memory bandwidth"
 ```
 
+#### Embed (Text Vectorization)
+
+Generate vector embeddings for text using NVIDIA's `nv-embed-v1` model:
+
+```bash
+python3 {baseDir}/scripts/nim_router.py build-request \
+  --capability embed \
+  --text "H100 GPU specifications" \
+  --input-type passage
+
+python3 {baseDir}/scripts/nim_router.py build-request \
+  --capability embed \
+  --text "What are the H100 specs?" \
+  --input-type query
+```
+
+Supported `--input-type` values:
+- `passage`: For indexing documents (default)
+- `query`: For search queries
+
+### RAG Pipeline
+
+The pipeline command provides end-to-end RAG ingestion: file/URL → OCR → semantic chunking → structured output.
+
+```bash
+# Process an image file
+python3 {baseDir}/scripts/nim_router.py pipeline \
+  --input "document.pdf" \
+  --format json-ld
+
+# Process a URL
+python3 {baseDir}/scripts/nim_router.py pipeline \
+  --url "https://example.com/page.png" \
+  --format markdown
+
+# Process URL with browser automation (for login-gated pages)
+python3 {baseDir}/scripts/nim_router.py pipeline \
+  --url "https://example.com/login-protected" \
+  --browser \
+  --format json-ld
+
+# Process with custom chunking
+python3 {baseDir}/scripts/nim_router.py pipeline \
+  --input "document.pdf" \
+  --chunk-size 1024 \
+  --overlap 128 \
+  --format text
+
+# Batch process a directory
+python3 {baseDir}/scripts/nim_router.py pipeline \
+  --input "/path/to/documents/" \
+  --format json-ld
+```
+
+**Pipeline Output Formats:**
+- `json-ld`: Schema.org ItemList format with chunk metadata (source, page_number, section_header, token_count)
+- `markdown`: Human-readable format with chunk headers and metadata
+- `text`: Plain text suitable for direct embedding pipelines
+
 ### Workflow Examples
 
 #### OCR + Rerank (ocr_then_rerank)
@@ -281,6 +343,37 @@ python3 {baseDir}/scripts/nim_router.py invoke \
 python3 {baseDir}/scripts/nim_router.py invoke \
   --capability ocr \
   --image-url "https://example.com/dashboard.png"
+```
+
+#### Embed + Rerank (Vector Search Pipeline)
+
+Use for semantic search with NVIDIA embeddings:
+
+```bash
+# Step 1: Generate embeddings for documents
+python3 {baseDir}/scripts/nim_router.py build-request \
+  --capability embed \
+  --text "H100 GPU specifications" \
+  --input-type passage
+
+# Step 2: Generate embedding for query
+python3 {baseDir}/scripts/nim_router.py build-request \
+  --capability embed \
+  --text "Tell me about H100 memory" \
+  --input-type query
+```
+
+#### RAG Pipeline (Full Ingestion)
+
+End-to-end document processing with semantic chunking:
+
+```bash
+# Extract, chunk, and format for RAG
+python3 {baseDir}/scripts/nim_router.py pipeline \
+  --input "research_paper.pdf" \
+  --chunk-size 512 \
+  --overlap 64 \
+  --format json-ld
 ```
 
 ### Platform-Specific Invocation
