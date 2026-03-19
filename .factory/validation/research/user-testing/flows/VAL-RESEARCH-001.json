@@ -1,0 +1,17 @@
+{
+  "assertionIds": ["VAL-RESEARCH-001"],
+  "status": "pass",
+  "evidence": {
+    "embed_capability_exists": true,
+    "has_url": true,
+    "has_auth": true,
+    "has_schema": true,
+    "url": "https://ai.api.nvidia.com/v1/embeddings",
+    "auth_env": "NVIDIA_API_KEY",
+    "model": "nvidia/nv-embed-v1",
+    "truncate_options": ["NONE", "START", "END"]
+  },
+  "frictions": [],
+  "blockers": [],
+  "toolsUsed": ["jq", "cat"]
+}

@@ -1,0 +1,15 @@
+{
+  "assertionIds": ["VAL-RESEARCH-002"],
+  "status": "pass",
+  "evidence": {
+    "file_count": 3,
+    "files": [
+      {"name": "sample.pdf", "type": "PDF page", "exists": true, "size": 1192},
+      {"name": "sample_image.png", "type": "image with text", "exists": true, "size": 5612},
+      {"name": "sample_url.txt", "type": "URL sample", "exists": true, "size": 64}
+    ]
+  },
+  "frictions": [],
+  "blockers": [],
+  "toolsUsed": ["ls", "jq"]
+}
