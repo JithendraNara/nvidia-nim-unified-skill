@@ -447,6 +447,59 @@ def to_data_url(source: str) -> str:
     )
 
 
+def fetch_url_with_browser(url: str) -> str:
+    """Fetch a URL using browser automation and return base64-encoded screenshot.
+    
+    Uses Playwright to launch a headless browser, navigate to the URL,
+    take a screenshot, and return it as a base64-encoded PNG data URL.
+    
+    This is useful for:
+    - Login-gated URLs that require authentication
+    - JavaScript-rendered pages (SPAs) that urllib cannot handle
+    - Pages where content is loaded dynamically after initial page load
+    
+    Args:
+        url: The URL to fetch
+        
+    Returns:
+        Base64-encoded PNG data URL of the rendered page
+        
+    Raises:
+        SystemExit: If Playwright is not installed or browser automation fails
+    """
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError:
+        raise SystemExit(
+            "Playwright is required for browser-based URL fetching. "
+            "Install it with: pip install playwright && playwright install chromium"
+        )
+    
+    with sync_playwright() as p:
+        try:
+            # Launch headless browser
+            browser = p.chromium.launch(headless=True)
+            page = browser.new_page()
+            
+            # Navigate to URL and wait for content to load
+            page.goto(url, wait_until="networkidle", timeout=60000)
+            
+            # Take a screenshot of the full page
+            screenshot_bytes = page.screenshot(full_page=True, type="png")
+            
+            browser.close()
+            
+            # Encode to base64 and return as data URL
+            encoded = base64.b64encode(screenshot_bytes).decode()
+            return f"data:image/png;base64,{encoded}"
+            
+        except Exception as exc:
+            browser.close()
+            raise SystemExit(
+                f"Browser automation failed for `{url}`: {exc}"
+            )
+
+
 def join_url(base_or_url: str, path: str) -> str:
     if base_or_url.endswith(path):
         return base_or_url
@@ -1103,8 +1156,13 @@ def run_pipeline(args: argparse.Namespace, catalog: dict[str, Any]) -> None:
     elif args.url:
         source = args.url
         # Convert URL to data URL for OCR
+        # Use browser automation if --browser flag is set (for login-gated or JS-rendered pages)
         try:
-            data_url = to_data_url(args.url)
+            if getattr(args, 'browser', False):
+                print(f"[pipeline] Using browser automation to fetch {source}...", file=sys.stderr)
+                data_url = fetch_url_with_browser(args.url)
+            else:
+                data_url = to_data_url(args.url)
         except SystemExit as exc:
             raise SystemExit(f"Failed to fetch URL: {exc}")
     else:
@@ -1235,6 +1293,11 @@ def build_parser() -> argparse.ArgumentParser:
     pipeline_parser = subparsers.add_parser("pipeline", help="RAG pipeline: file/URL → OCR → chunk → output")
     pipeline_parser.add_argument("--input", help="Input file path (image or document)")
     pipeline_parser.add_argument("--url", help="Input URL to fetch and process")
+    pipeline_parser.add_argument(
+        "--browser",
+        action="store_true",
+        help="Use browser automation to fetch URL (for login-gated or JavaScript-rendered pages)"
+    )
     pipeline_parser.add_argument("--chunk-size", type=int, default=512, help="Chunk size in tokens (default: 512)")
     pipeline_parser.add_argument("--overlap", type=int, default=64, help="Overlap between chunks in tokens (default: 64)")
     pipeline_parser.add_argument(

@@ -610,5 +610,83 @@ class TestBatchProcessing:
         assert "error" in result
 
 
+class TestURLWorkflow:
+    """Test URL workflow with --url flag - VAL-URL-001, VAL-URL-002, VAL-URL-003."""
+
+    def test_pipeline_url_option_exists(self):
+        """Verify: --url option is available in pipeline command."""
+        import subprocess
+        result = subprocess.run(
+            ["python3", str(Path(__file__).parent.parent / "scripts" / "nim_router.py"), "pipeline", "--help"],
+            capture_output=True,
+            text=True,
+            cwd=Path(__file__).parent.parent
+        )
+        
+        assert result.returncode == 0
+        assert "--url" in result.stdout
+
+    def test_pipeline_browser_option_exists(self):
+        """Verify: --browser option is available for login-gated URLs."""
+        import subprocess
+        result = subprocess.run(
+            ["python3", str(Path(__file__).parent.parent / "scripts" / "nim_router.py"), "pipeline", "--help"],
+            capture_output=True,
+            text=True,
+            cwd=Path(__file__).parent.parent
+        )
+        
+        assert result.returncode == 0
+        assert "--browser" in result.stdout
+
+    def test_pipeline_url_accepts_http_url(self):
+        """Verify: --url accepts HTTP/HTTPS URLs."""
+        # The --url flag should be recognized and not cause CLI error
+        import subprocess
+        result = subprocess.run(
+            ["python3", str(Path(__file__).parent.parent / "scripts" / "nim_router.py"), 
+             "pipeline", "--url", "https://example.com", "--help"],
+            capture_output=True,
+            text=True,
+            cwd=Path(__file__).parent.parent
+        )
+        
+        # Should not fail on --url parsing (may fail on actual URL fetch, but CLI should parse)
+        # If it fails with "unrecognized arguments", the --url flag is not properly added
+        assert "unrecognized arguments" not in result.stderr
+        assert result.returncode == 0 or "Failed to fetch" in result.stderr or "Failed to process" in result.stderr
+
+    def test_fetch_url_with_browser_import_error(self):
+        """Test fetch_url_with_browser raises proper error when Playwright not installed."""
+        from nim_router import fetch_url_with_browser
+        
+        # When Playwright is not installed, should raise SystemExit with helpful message
+        import pytest
+        with pytest.raises(SystemExit) as exc_info:
+            # Call with a dummy URL - it will fail on Playwright import
+            # We need to mock the import to fail
+            import builtins
+            original_import = builtins.__import__
+            
+            def mock_import(name, *args, **kwargs):
+                if name == 'playwright':
+                    raise ImportError("No module named 'playwright'")
+                return original_import(name, *args, **kwargs)
+            
+            builtins.__import__ = mock_import
+            try:
+                fetch_url_with_browser("https://example.com")
+            finally:
+                builtins.__import__ = original_import
+
+    def test_to_data_url_function_exists(self):
+        """Verify to_data_url function exists and handles URLs correctly."""
+        from nim_router import to_data_url
+        
+        # Test that data URLs pass through unchanged
+        data_url = "data:image/png;base64,iVBORw0KG"
+        assert to_data_url(data_url) == data_url
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
