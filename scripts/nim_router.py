@@ -778,6 +778,220 @@ async def async_invoke_batch(
     return processed_results
 
 
+def chunk_text(text: str, chunk_size: int = 512, overlap: int = 64) -> list[dict[str, Any]]:
+    """Split text into chunks with configurable size and overlap.
+    
+    Uses simple token-based chunking (words as tokens). Chunks are created
+    by splitting on whitespace and grouping tokens together.
+    
+    Args:
+        text: The text to chunk
+        chunk_size: Target number of tokens per chunk
+        overlap: Number of tokens to overlap between chunks
+        
+    Returns:
+        List of chunk dicts with text, start_token, end_token, chunk_index
+    """
+    if not text or not text.strip():
+        return []
+    
+    # Tokenize by splitting on whitespace
+    words = text.split()
+    if not words:
+        return []
+    
+    chunks = []
+    start = 0
+    chunk_index = 0
+    
+    while start < len(words):
+        end = min(start + chunk_size, len(words))
+        chunk_words = words[start:end]
+        chunk_text = " ".join(chunk_words)
+        
+        chunks.append({
+            "text": chunk_text,
+            "start_token": start,
+            "end_token": end - 1,
+            "chunk_index": chunk_index,
+            "token_count": len(chunk_words)
+        })
+        
+        # Move forward with overlap
+        if end >= len(words):
+            break
+        start = end - overlap
+        chunk_index += 1
+    
+    return chunks
+
+
+def format_chunks_json(chunks: list[dict[str, Any]], source: str) -> dict[str, Any]:
+    """Format chunks as JSON with metadata.
+    
+    Args:
+        chunks: List of chunk dicts
+        source: Source identifier (file path or URL)
+        
+    Returns:
+        Dict with chunks and metadata
+    """
+    return {
+        "source": source,
+        "chunk_count": len(chunks),
+        "chunks": chunks
+    }
+
+
+def format_chunks_markdown(chunks: list[dict[str, Any]], source: str) -> str:
+    """Format chunks as readable markdown.
+    
+    Args:
+        chunks: List of chunk dicts
+        source: Source identifier (file path or URL)
+        
+    Returns:
+        Markdown-formatted string
+    """
+    lines = [f"# Chunks from {source}", ""]
+    lines.append(f"Total chunks: {len(chunks)}\n")
+    
+    for chunk in chunks:
+        lines.append(f"## Chunk {chunk['chunk_index'] + 1} (tokens {chunk['start_token']}-{chunk['end_token']})")
+        lines.append("")
+        lines.append(chunk["text"])
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+    
+    return "\n".join(lines)
+
+
+def format_chunks_text(chunks: list[dict[str, Any]], source: str) -> str:
+    """Format chunks as plain text suitable for embedding pipelines.
+    
+    Args:
+        chunks: List of chunk dicts
+        source: Source identifier (file path or URL)
+        
+    Returns:
+        Plain text string
+    """
+    lines = []
+    for chunk in chunks:
+        lines.append(chunk["text"])
+        lines.append("")  # Empty line between chunks
+    
+    return "\n".join(lines).strip()
+
+
+def run_pipeline(args: argparse.Namespace, catalog: dict[str, Any]) -> None:
+    """Run the RAG pipeline: file/URL → OCR → chunk → output.
+    
+    Args:
+        args: Parsed command-line arguments
+        catalog: Capabilities catalog
+    """
+    # Determine input source
+    if args.input:
+        source = str(args.input)
+        # Convert file to data URL for OCR
+        try:
+            data_url = to_data_url(args.input)
+        except SystemExit as exc:
+            raise SystemExit(f"Failed to process input file: {exc}")
+    elif args.url:
+        source = args.url
+        # Convert URL to data URL for OCR
+        try:
+            data_url = to_data_url(args.url)
+        except SystemExit as exc:
+            raise SystemExit(f"Failed to fetch URL: {exc}")
+    else:
+        raise SystemExit("Pipeline requires either --input <file> or --url <url>")
+    
+    # Build OCR request
+    class OcraArgs:
+        """Helper class to simulate argparse.Namespace for OCR."""
+        def __init__(self):
+            self.image_url = [data_url]
+            self.merge_level = ["paragraph"]
+            self.confidence_threshold = None
+            self.nms_threshold = None
+            self.text = None
+            self.input_type = None
+    
+    ocr_args = OcraArgs()
+    runtime = load_runtime_config(None)  # No runtime config needed for OCR
+    
+    try:
+        request_plan = build_request("ocr", ocr_args, catalog, runtime)
+    except SystemExit as exc:
+        raise SystemExit(f"Failed to build OCR request: {exc}")
+    
+    # Invoke OCR
+    print(f"[pipeline] Running OCR on {source}...", file=sys.stderr)
+    result = invoke_request(request_plan)
+    
+    if result.get("status") != 200:
+        raise SystemExit(f"OCR failed with status {result.get('status')}: {result.get('response')}")
+    
+    # Extract text from OCR response
+    ocr_response = result.get("response", {})
+    
+    # Handle different response formats
+    if isinstance(ocr_response, dict):
+        # Try to extract text from common response structures
+        if "result" in ocr_response and "text" in ocr_response["result"]:
+            extracted_text = ocr_response["result"]["text"]
+        elif "text" in ocr_response:
+            extracted_text = ocr_response["text"]
+        elif "data" in ocr_response:
+            # Handle data array format
+            texts = []
+            for item in ocr_response.get("data", []):
+                if isinstance(item, dict):
+                    # Try different text field names
+                    for field in ["text", "text_prediction", "text_predictions"]:
+                        if field in item:
+                            if isinstance(item[field], dict) and "text" in item[field]:
+                                texts.append(item[field]["text"])
+                            elif isinstance(item[field], str):
+                                texts.append(item[field])
+                elif isinstance(item, str):
+                    texts.append(item)
+            extracted_text = " ".join(texts) if texts else ""
+        else:
+            extracted_text = str(ocr_response)
+    elif isinstance(ocr_response, str):
+        extracted_text = ocr_response
+    else:
+        extracted_text = str(ocr_response)
+    
+    if not extracted_text:
+        extracted_text = ""
+    
+    print(f"[pipeline] Extracted {len(extracted_text.split())} tokens, chunking...", file=sys.stderr)
+    
+    # Chunk the text
+    chunks = chunk_text(extracted_text, args.chunk_size, args.overlap)
+    
+    print(f"[pipeline] Created {len(chunks)} chunks, formatting output...", file=sys.stderr)
+    
+    # Add source metadata to each chunk
+    for chunk in chunks:
+        chunk["source"] = source
+    
+    # Format and output based on requested format
+    if args.format == "json":
+        output = format_chunks_json(chunks, source)
+        print_json(output)
+    elif args.format == "markdown":
+        print(format_chunks_markdown(chunks, source))
+    else:  # text
+        print(format_chunks_text(chunks, source))
+
+
 def print_json(value: Any) -> None:
     print(json.dumps(value, indent=2, sort_keys=False))
 
@@ -815,6 +1029,19 @@ def build_parser() -> argparse.ArgumentParser:
         command_parser.add_argument("--text", action="append", help="Text to embed (can be specified multiple times)")
         command_parser.add_argument("--input-type", choices=["passage", "query"], help="Input type for embedding (passage or query)")
 
+    # Pipeline command for RAG ingestion
+    pipeline_parser = subparsers.add_parser("pipeline", help="RAG pipeline: file/URL → OCR → chunk → output")
+    pipeline_parser.add_argument("--input", help="Input file path (image or document)")
+    pipeline_parser.add_argument("--url", help="Input URL to fetch and process")
+    pipeline_parser.add_argument("--chunk-size", type=int, default=512, help="Chunk size in tokens (default: 512)")
+    pipeline_parser.add_argument("--overlap", type=int, default=64, help="Overlap between chunks in tokens (default: 64)")
+    pipeline_parser.add_argument(
+        "--format",
+        choices=["json", "markdown", "text"],
+        default="json",
+        help="Output format (default: json)"
+    )
+
     return parser
 
 
@@ -834,6 +1061,10 @@ def main() -> None:
             }
         )
         print_json(plan)
+        return
+
+    if args.command == "pipeline":
+        run_pipeline(args, catalog)
         return
 
     runtime = load_runtime_config(args.config)
