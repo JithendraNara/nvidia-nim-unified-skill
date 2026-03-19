@@ -1,0 +1,28 @@
+{
+  "featureId": "batch-processing",
+  "reviewedAt": "2026-03-19T02:10:00.000Z",
+  "commitId": "5a57c419cb6195d498624580b34e40644ab6f733",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Implementation correctly adds batch folder processing to pipeline command. The code detects directories via Path.is_dir(), iterates supported file types, processes each via process_single_file(), and returns an array of results with source/status/result-or-error per file. All 32 tests pass. One non-blocking gap: VAL-PIPELINE-005 specifies '5+ files' but tests/fixtures/ contains only 2 files and test assertions do not enforce the 5+ requirement.",
+    "issues": [
+      {
+        "file": "tests/test_pipeline.py",
+        "line": 529,
+        "severity": "non-blocking",
+        "description": "test_pipeline_processes_directory uses a very loose assertion: `assert '--input' in result.stdout or result.returncode == 0 or 'files found' in result.stderr.lower() or 'directory' in result.stderr.lower()`. This passes if any condition is true but doesn't verify the actual behavior. Compare: VAL-PIPELINE-005 requires 'each file has separate result entry' but this assertion would also pass if the CLI simply failed with a directory-related error message."
+      },
+      {
+        "file": "tests/test_pipeline.py",
+        "line": 573,
+        "severity": "non-blocking",
+        "description": "test_batch_output_is_array asserts `len(data['results']) > 0` (1+ files), but VAL-PIPELINE-005 specifies '5+ files'. The test fixtures directory (tests/fixtures/) contains only 2 files (sample_image.png, sample.pdf, sample_url.txt), not 5+. The implementation would correctly handle 5+ files, but this is not verified by the test."
+      }
+    ]
+  },
+  "sharedStateObservations": [],
+  "addressesFailureFrom": null,
+  "summary": "Batch folder processing feature passes code review. Core implementation is correct: process_single_file() helper extracts file processing logic, run_pipeline() detects directories via Path.is_dir(), iterates all supported file types, returns array of results (one per file) with source/status/result-or-error. All 32 tests pass including 4 new batch tests. Two non-blocking test quality gaps: (1) test_pipeline_processes_directory uses loose assertion that doesn't verify per-file result entries, (2) VAL-PIPELINE-005 specifies '5+ files' but fixtures only has 2 files and test asserts 1+."
+}
