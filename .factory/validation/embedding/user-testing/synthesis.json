@@ -1,6 +1,6 @@
 {
   "milestone": "embedding",
-  "round": 3,
+  "round": 4,
   "status": "fail",
   "assertionsSummary": {
     "total": 3,
@@ -14,14 +14,16 @@
     {
       "id": "VAL-EMBED-003",
       "blockedBy": "NVIDIA_API_KEY environment variable not set",
-      "detail": "The embed capability code works correctly (build-request produces valid JSON), but invoke cannot authenticate with the NVIDIA API without an API key. This is an environment limitation, not a code defect."
+      "detail": "The embed capability code works correctly (build-request produces valid JSON and invoke command structure is correct), but cannot authenticate with the NVIDIA API without an API key. This is an environment limitation, not a code defect. The assertion specifically requires live API access which is not available in this environment."
     }
   ],
   "appliedUpdates": [],
   "previousRound": ".factory/validation/embedding/user-testing/synthesis.json",
   "notes": [
-    "Round 3 confirms same blocking issue as rounds 1 and 2: NVIDIA_API_KEY not available in environment",
-    "VAL-EMBED-001 and VAL-EMBED-002 remain passed (no change needed)",
-    "The embed capability implementation is correct - VAL-EMBED-003 cannot be validated without API key"
+    "Round 4 confirms same blocking issue as rounds 1-3: NVIDIA_API_KEY not available in environment",
+    "VAL-EMBED-001 (embed capability in catalog) remains passed",
+    "VAL-EMBED-002 (build-request works) remains passed - confirmed again: `python3 scripts/nim_router.py build-request --capability embed --text 'hello world'` returns valid JSON",
+    "VAL-EMBED-003 (embed endpoint accessible) remains blocked - cannot authenticate without API key",
+    "The embed capability implementation is correct. VAL-EMBED-003 requires external NVIDIA API access which is blocked by missing credential."
   ]
 }
