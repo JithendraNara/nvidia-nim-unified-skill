@@ -1,0 +1,20 @@
+{
+  "milestone": "embedding",
+  "assertions": ["VAL-EMBED-003"],
+  "status": "blocked",
+  "evidence": {
+    "command": "python3 scripts/nim_router.py invoke --capability embed --text \"sample text\"",
+    "error": "NVIDIA_API_KEY not set - cannot authenticate with NVIDIA API",
+    "response_status": 404,
+    "response_body": "404 page not found"
+  },
+  "frictions": [],
+  "blockers": [
+    {
+      "assertion": "VAL-EMBED-003",
+      "reason": "NVIDIA_API_KEY environment variable is not set",
+      "impact": "Cannot make authenticated requests to NVIDIA embed endpoint"
+    }
+  ],
+  "toolsUsed": ["python3"]
+}

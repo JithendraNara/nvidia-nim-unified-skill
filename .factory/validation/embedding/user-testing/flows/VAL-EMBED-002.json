@@ -1,0 +1,29 @@
+{
+  "milestone": "embedding",
+  "assertions": ["VAL-EMBED-002"],
+  "status": "pass",
+  "evidence": {
+    "command": "python3 scripts/nim_router.py build-request --capability embed --text \"sample text\"",
+    "output": {
+      "capability": "embed",
+      "method": "POST",
+      "url": "https://ai.api.nvidia.com/v1/embeddings",
+      "body": {
+        "input": ["sample text"],
+        "model": "nvidia/nv-embed-v1",
+        "input_type": "passage",
+        "encoding_format": "float",
+        "truncate": "END"
+      }
+    },
+    "validation": {
+      "has_model": true,
+      "has_input_text": true,
+      "has_truncation": true,
+      "is_valid_json": true
+    }
+  },
+  "frictions": [],
+  "blockers": [],
+  "toolsUsed": ["python3"]
+}

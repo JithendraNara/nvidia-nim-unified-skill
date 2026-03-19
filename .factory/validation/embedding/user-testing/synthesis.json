@@ -1,0 +1,18 @@
+{
+  "milestone": "embedding",
+  "round": 1,
+  "status": "fail",
+  "assertionsSummary": {
+    "total": 3,
+    "passed": 2,
+    "failed": 0,
+    "blocked": 1
+  },
+  "passedAssertions": ["VAL-EMBED-001", "VAL-EMBED-002"],
+  "failedAssertions": [],
+  "blockedAssertions": [
+    { "id": "VAL-EMBED-003", "blockedBy": "NVIDIA_API_KEY environment variable not set" }
+  ],
+  "appliedUpdates": [],
+  "previousRound": null
+}

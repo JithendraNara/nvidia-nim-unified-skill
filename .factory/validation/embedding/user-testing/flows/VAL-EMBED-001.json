@@ -1,0 +1,16 @@
+{
+  "milestone": "embedding",
+  "assertions": ["VAL-EMBED-001"],
+  "status": "pass",
+  "evidence": {
+    "catalog_check": {
+      "embed_exists": true,
+      "fixed_url": "https://ai.api.nvidia.com/v1/embeddings",
+      "auth_env": "NVIDIA_API_KEY",
+      "request_schema_present": true
+    }
+  },
+  "frictions": [],
+  "blockers": [],
+  "toolsUsed": ["python3", "jq"]
+}
